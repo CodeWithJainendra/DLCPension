@@ -1,0 +1,120 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+body {
+  background-color: #f5f7fa;
+  transition: background-color 0.3s ease;
+}
+
+/* Dark theme styles */
+[data-theme="dark"] body {
+  background-color: #0D1B2A !important; /* Deep navy blue */
+}
+
+[data-theme="dark"] .MuiPaper-root {
+  background-color: #1B263B !important; /* Card background */
+  color: #E0E1DD !important; /* Light text */
+  border-color: #415A77 !important; /* Border/divider */
+}
+
+[data-theme="dark"] .leaflet-container {
+  background: #1B263B !important; /* Card background for map */
+}
+
+/* Dark theme tooltip styles */
+[data-theme="dark"] .leaflet-tooltip.state-hover-tooltip {
+  background: #1B263B !important;
+  border: 1px solid #415A77 !important;
+  color: #E0E1DD !important;
+}
+
+/* Dark theme button styles */
+[data-theme="dark"] .MuiButton-root {
+  color: #E0E1DD !important;
+}
+
+[data-theme="dark"] .MuiButton-contained {
+  background-color: #3A86FF !important;
+  color: #E0E1DD !important;
+}
+
+/* Dark theme typography */
+[data-theme="dark"] .MuiTypography-root {
+  color: #E0E1DD !important;
+}
+
+/* Dark theme borders */
+[data-theme="dark"] * {
+  border-color: #415A77 !important;
+}
+
+.MuiPaper-root {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+.MuiButton-root {
+  text-transform: none !important;
+}
+
+@media (max-width: 1200px) {
+  .MuiContainer-root {
+    padding: 10px !important;
+  }
+  
+  .dashboard-layout {
+    flex-direction: column !important;
+  }
+  
+  .dashboard-layout > div {
+    flex: 1 !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-cards {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+  
+  .stat-cards > div {
+    margin: 0 4px !important;
+  }
+  
+  .button-group {
+    flex-direction: column !important;
+  }
+  
+  .button-group button {
+    margin: 5px 0 !important;
+  }
+}
+
+/* Leaflet tooltip card for state hover */
+.leaflet-tooltip.state-hover-tooltip {
+  background: #ffffff;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 8px 10px;
+  color: #2b2e3a;
+}
+.state-hover-card .state-card-title {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.state-hover-card .state-card-value {
+  font-size: 12px;
+  color: #555;
+}
+
+/* Leaflet container background override to remove grey */
+.leaflet-container {
+  background: #ffffff !important;
+}
