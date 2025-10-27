@@ -56,7 +56,7 @@ const StateAnalytics = ({
         item.state || item.stateName || item.name || item.STATE || 'Unknown';
       
       const getTotalPensioners = (item) =>
-        item.totalPensioners ?? item.pensioners ?? item.total ?? item.count ?? 0;
+        item.total_pensioners ?? item.pensioners ?? item.total ?? item.count ?? 0;
       
       const getCompleted = (item) =>
         item.completed ?? item.dlc ?? item.completedDLC ?? item.verified ?? 0;
