@@ -60,7 +60,6 @@ const AgeBreakdown = () => {
       
       if (apiData.success && apiData.ageDistribution) {
         setAgeData(apiData.ageDistribution);
-        console.log('✅ Age distribution loaded:', apiData.ageDistribution);
       }
     } catch (err) {
       console.error('❌ Failed to fetch age distribution:', err);

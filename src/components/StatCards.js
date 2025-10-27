@@ -195,10 +195,9 @@ const StatCards = () => {
           verifiedToday: data.verifiedToday || 0,
           pendingQueue: data.pendingQueue || 0,
         });
-        console.log('✅ Dashboard stats loaded:', data);
       }
     } catch (err) {
-      console.error('❌ Failed to fetch dashboard stats:', err);
+      console.error('Failed to fetch dashboard stats:', err);
       setError(err.message);
     } finally {
       setLoading(false);
