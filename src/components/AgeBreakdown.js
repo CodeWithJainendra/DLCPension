@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Paper, Button, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import { Box, Typography, Paper, Button, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import CloseIcon from '@mui/icons-material/Close';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
@@ -7,6 +7,7 @@ import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchWithCache } from '../utils/cache';
+import { LinearProgress } from '@mui/material';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -89,6 +90,28 @@ const AgeBreakdown = () => {
   const options = {
     plugins: { legend: { display: false }, tooltip: { enabled: true } },
     cutout: '68%',
+    maintainAspectRatio: false,
+  };
+
+  // Prepare modal chart and table data
+  const detailed = hasData ? ageData : fallbackLabels.map(label => ({ ageGroup: label, count: 0 }));
+  const totalCount = detailed.reduce((sum, item) => sum + (item.count || 0), 0);
+  const detailColors = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'];
+
+  const modalChartData = {
+    labels: detailed.map(item => item.ageGroup),
+    datasets: [
+      {
+        data: detailed.map(item => item.count || 0),
+        backgroundColor: detailColors,
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const modalChartOptions = {
+    plugins: { legend: { position: 'bottom' }, tooltip: { enabled: true } },
+    cutout: '0%', // pie-style (no hole)
     maintainAspectRatio: false,
   };
 
@@ -184,7 +207,7 @@ const AgeBreakdown = () => {
         onClose={() => setOpen(false)}
         fullWidth
         maxWidth="sm"
-        BackdropProps={{ sx: { backdropFilter: 'blur(3px)' } }}
+        BackdropProps={{ sx: { backdropFilter: 'blur(5px)' } }}
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '16px' }}>
           Age-wise Breakdown Details
@@ -193,9 +216,50 @@ const AgeBreakdown = () => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: '#666' }}>
-            Future data and charts can be shown here.
-          </Typography>
+          {/* Summary */}
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: '12px' }}>
+              Total Pensioners
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary, fontSize: '12px' }}>
+              {totalCount.toLocaleString('en-IN')}
+            </Typography>
+          </Box>
+
+          {/* Pie chart */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <Box sx={{ width: 280, height: 220 }}>
+              <Doughnut data={modalChartData} options={modalChartOptions} />
+            </Box>
+          </Box>
+
+          {/* Compact table */}
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontSize: '12px' }}>Age Group</TableCell>
+                <TableCell align="right" sx={{ fontSize: '12px' }}>Count</TableCell>
+                <TableCell align="right" sx={{ fontSize: '12px' }}>Percentage</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {detailed.map((item) => {
+                const count = item.count || 0;
+                const pct = totalCount > 0 ? (count / totalCount) * 100 : 0;
+                return (
+                  <TableRow key={item.ageGroup}>
+                    <TableCell sx={{ fontSize: '12px' }}>{item.ageGroup}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: '12px' }}>
+                      {count.toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontSize: '12px' }}>
+                      {pct.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </DialogContent>
       </Dialog>
     </>

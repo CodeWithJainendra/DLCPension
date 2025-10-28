@@ -3,22 +3,56 @@ import { Box, Typography, Paper, Tabs, Tab } from '@mui/material';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BusinessIcon from '@mui/icons-material/Business';
+import CategoryIcon from '@mui/icons-material/Category';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchWithCache } from '../utils/cache';
 
 // In the StateAnalytics component signature
 const StateAnalytics = ({
   // Customizable column labels
-  topStatesLeftLabel = 'State/UT',
-  topStatesMiddleLabel = 'Total Pensioners',
-  topStatesRightLabel = 'Completion Rate',
-  // Add bank labels (customizable)
-  topBanksLeftLabel = 'Bank',
-  topBanksMiddleLabel = 'Total Pensioners',
-  topBanksRightLabel = 'Completion Rate',
+  leftLabel = {
+    "state": "State / UT",
+    "PSA": "PSA",
+    "bank": "Bank",
+    "central_subtype": "Central types"
+  },
+  middleLabel = 'Total Pensioners',
+  rightLabel = 'Completion Rate',
 }) => {
   const [tabValue, setTabValue] = useState(0);
   const { isDarkMode, theme } = useTheme();
+
+  // Responsive styling utilities
+  const getResponsiveHeaderStyle = () => ({
+    fontWeight: 600,
+    color: theme.palette.text.primary,
+    fontSize: { xs: '10px', sm: '11px', md: '12px' },
+    fontFamily: 'Inter, Roboto, Arial, sans-serif',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  });
+
+  const getResponsiveDataStyle = () => ({
+    color: theme.palette.text.secondary,
+    fontSize: { xs: '10px', sm: '11px', md: '12px' },
+    fontFamily: 'Inter, Roboto, Arial, sans-serif',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  });
+
+  const getResponsiveMessageStyle = () => ({
+    color: theme.palette.text.secondary,
+    fontSize: { xs: '10px', sm: '11px', md: '12px' },
+    fontFamily: 'Inter, Roboto, Arial, sans-serif'
+  });
+
+  const getResponsiveErrorStyle = () => ({
+    color: theme.palette.error.main,
+    fontSize: { xs: '10px', sm: '11px', md: '12px' },
+    fontFamily: 'Inter, Roboto, Arial, sans-serif'
+  });
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -96,6 +130,112 @@ const StateAnalytics = ({
   const [banksLoading, setBanksLoading] = useState(false);
   const [banksError, setBanksError] = useState(null);
   const banksFetched = useRef(false);
+  
+  const [topPSAs, setTopPSAs] = useState([]);
+  const [psaLoading, setPSALoading] = useState(false);
+  const [psaError, setPSAError] = useState(null);
+  const psaFetched = useRef(false);
+
+  const [topCategories, setTopCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState(null);
+  const categoriesFetched = useRef(false);
+  
+  const [topPensionerTypes, setTopPensionerTypes] = useState([]);
+  const [ptypesLoading, setPTypesLoading] = useState(false);
+  const [ptypesError, setPTypesError] = useState(null);
+  const ptypesFetched = useRef(false);
+
+  // Dedupe helper (shared for states/banks/PSAs)
+  const canon = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const dedupeByNameKeepBest = (arr) => {
+    const best = new Map();
+    arr.forEach((item) => {
+      const key = canon(item.name);
+      const current = best.get(key);
+      if (!current) {
+        best.set(key, item);
+        return;
+      }
+      const cmp =
+        (item.completionRate || 0) - (current.completionRate || 0) ||
+        (item.totalPensioners || 0) - (current.totalPensioners || 0);
+      if (cmp > 0) best.set(key, item);
+    });
+    return Array.from(best.values());
+  };
+
+  // Reusable fetch+normalize for top performers
+  const fetchTopData = async (endpoint, { nameKey, totalKey, completionKey }, ttlMs = 5 * 60 * 1000) => {
+    const apiData = await fetchWithCache(endpoint, {}, ttlMs);
+
+    // Accept array payloads or object payloads keyed by indices; ignore non-entry metadata
+    const payload = apiData?.data ?? apiData;
+    let list = [];
+
+    if (Array.isArray(payload)) {
+      list = payload;
+    } 
+    // else if (payload && typeof payload === 'object') {
+    //   list = Object.values(payload).filter(
+    //     (v) =>
+    //       v &&
+    //       typeof v === 'object' &&
+    //       ((Array.isArray(nameKey) ? nameKey.some(k => k in v) : nameKey in v) ||
+    //        (Array.isArray(totalKey) ? totalKey.some(k => k in v) : totalKey in v) ||
+    //        (Array.isArray(completionKey) ? completionKey.some(k => k in v) : completionKey in v))
+    //   );
+    // } 
+    else {
+      list = [];
+    }
+
+    const resolveValue = (obj, keyOrKeys) => {
+      if (Array.isArray(keyOrKeys)) {
+        for (const k of keyOrKeys) {
+          if (obj[k] != null) return obj[k];
+        }
+        return undefined;
+      }
+      return obj[keyOrKeys];
+    };
+
+    const normalized = list.map((item) => {
+      const rawName = resolveValue(item, nameKey);
+      const name =
+        rawName == null || String(rawName).trim() === '' ? 'Unknown' : String(rawName);
+
+      const totalRaw = resolveValue(item, totalKey);
+      const totalPensioners = Number(totalRaw ?? 0);
+
+      const rawRatio = resolveValue(item, completionKey);
+      const completedFallback =
+        item.verified_pensioner_count ??
+        item.verified ??
+        item.completedDLC ??
+        item.completed ??
+        null;
+
+      let completionRate;
+      if (rawRatio != null && !Number.isNaN(Number(rawRatio))) {
+        completionRate = Number(rawRatio) <= 1 ? Number(rawRatio) * 100 : Number(rawRatio);
+      } else if (completedFallback != null && totalPensioners > 0) {
+        completionRate = (Number(completedFallback) / totalPensioners) * 100;
+      } else {
+        completionRate = 0;
+      }
+
+      return { name, totalPensioners, completionRate };
+    });
+    
+    // Filter out items with unknown names or zero pensioners
+    const filtered = normalized.filter(item => 
+      item.name !== 'Unknown' && item.totalPensioners > 0
+    );
+
+    const unique = dedupeByNameKeepBest(filtered.length > 0 ? filtered : normalized);
+    return unique.sort((a, b) => b.completionRate - a.completionRate).slice(0, 5);
+  };
 
   useEffect(() => {
     // Fetch banks the first time the tab is opened
@@ -103,65 +243,38 @@ const StateAnalytics = ({
       banksFetched.current = true;
       fetchTopBanks();
     }
+    // Fetch PSAs on first open of the tab
+    if (tabValue === 2 && !psaFetched.current) {
+      psaFetched.current = true;
+      fetchTopPSAs();
+    }
+    // Fetch Categories on first open of the tab
+    if (tabValue === 3 && !categoriesFetched.current) {
+      categoriesFetched.current = true;
+      fetchTopCentralPensionSubtypes();
+    }
+    // Fetch Pensioner Types on first open of the tab
+    if (tabValue === 4 && !ptypesFetched.current) {
+      ptypesFetched.current = true;
+      fetchTopPensionerTypes();
+    }
   }, [tabValue]);
 
   // Inside fetchTopBanks()
+  // Refactor Top Banks to reuse fetchTopData
   const fetchTopBanks = async () => {
     try {
       setBanksLoading(true);
       setBanksError(null);
-
-      const apiData = await fetchWithCache(
+      const items = await fetchTopData(
         'https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks',
-        {},
-        5 * 60 * 1000
+        { 
+          nameKey: ['Bank_name', 'bank_name', 'bank', 'Bank'], 
+          totalKey: ['all_pensioner_count', 'total_pensioners', 'count', 'total'], 
+          completionKey: ['completion_ratio', 'completion_rate', 'rate'] 
+        }
       );
-
-      // Normalize response
-      const list = Array.isArray(apiData?.topBanks)
-        ? apiData.topBanks
-        : Array.isArray(apiData?.data)
-        ? apiData.data
-        : Array.isArray(apiData)
-        ? apiData
-        : [];
-
-      const getName = (item) =>
-        item.bank || item.Bank_name || item.name || item.BANK || 'Unknown';
-
-      // Strict total-pensioners mapping; avoid verified/DLC counts
-      const getTotalPensioners = (item) =>
-        item.all_pensioner_count ??
-        item.total_pensioners ??
-        item.pensioners ??
-        item.totalPensionersCount ??
-        0;
-
-      const getCompleted = (item) =>
-        item.verified_pensioner_count ?? item.dlc ?? item.completedDLC ?? item.verified ?? 0;
-
-      const getCompletionRate = (item) => {
-        const rateRaw = item.completionRate ?? item.rate ?? item.percentage;
-        if (rateRaw != null) return Number(rateRaw);
-        const total = getTotalPensioners(item);
-        const completed = getCompleted(item);
-        return total > 0 ? (completed / total) * 100 : 0;
-      };
-
-  const normalized = list
-        .map((item) => ({
-           name: getName(item),
-          totalPensioners: getTotalPensioners(item),
-          completionRate: getCompletionRate(item),
-        }));
-  
-      // Remove duplicates by name, keep best performer
-      const unique = dedupeByNameKeepBest(normalized);
-  
-      // Sort and take top 5
-      const top5 = unique.sort((a, b) => b.completionRate - a.completionRate).slice(0, 5);
-  
-      setTopBanks(top5);
+      setTopBanks(items);
     } catch (err) {
       console.error('❌ Failed to fetch top banks:', err);
       setBanksError(err.message);
@@ -170,15 +283,109 @@ const StateAnalytics = ({
     }
   };
   
+  const fetchTopPSAs = async () => {
+    try {
+      setPSALoading(true);
+      setPSAError(null);
+      const items = await fetchTopData(
+        'https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa',
+        { 
+          nameKey: ['psa', 'PSA', 'psa_name', 'PSA_name'], 
+          totalKey: ['total_pensioners', 'all_pensioner_count', 'count', 'total'], 
+          completionKey: ['completion_ratio', 'completion_rate', 'rate'] 
+        }
+      );
+      setTopPSAs(items);
+    } catch (err) {
+      console.error('❌ Failed to fetch top PSAs:', err);
+      setPSAError(err.message);
+    } finally {
+      setPSALoading(false);
+    }
+  };
+
+  const fetchTopCentralPensionSubtypes = async () => {
+    try {
+      setCategoriesLoading(true);
+      setCategoriesError(null);
+
+      // Try multiple candidates to avoid 404s due to path variants
+      const candidates = [
+        'https://samar.iitk.ac.in/dlc-pension-data-api/api/top-categories', // direct
+        '/api/top-categories',                                               // dev proxy
+        'https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types', // fallback (different shape)
+      ];
+
+      const tryEndpoints = async () => {
+        let lastErr = null;
+        for (const endpoint of candidates) {
+          try {
+            const items = await fetchTopData(
+              endpoint,
+              { 
+                nameKey: ['category', 'Category', 'pensioner_category', 'Pensioner_category', 'Pensioner_type', 'type', 'TYPE', 'name', 'Name'], 
+                totalKey: ['total_pensioners', 'all_pensioner_count', 'count', 'total'], 
+                completionKey: ['completion_ratio', 'completion_rate', 'rate', 'completionRate', 'percentage'] 
+              }
+            );
+            if (items && items.length >= 0) return items;
+          } catch (err) {
+            lastErr = err;
+            // Continue trying next candidate
+          }
+        }
+        throw lastErr || new Error('No valid endpoint for top categories');
+      };
+
+      const items = await tryEndpoints();
+      const cleaned = items.filter((i) => i.name !== 'Unknown' && i.totalPensioners > 0);
+      setTopCategories(cleaned);
+    } catch (err) {
+      console.error('❌ Failed to fetch top categories:', err);
+      setCategoriesError(
+        err?.message?.includes('404')
+          ? 'Endpoint not found (404). Please verify the Top Categories API path.'
+          : err.message
+      );
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+  
+  const fetchTopPensionerTypes = async () => {
+    try {
+      setPTypesLoading(true);
+      setPTypesError(null);
+      const items = await fetchTopData(
+        'https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types',
+        { 
+          nameKey: ['Pensioner_type', 'pensioner_type', 'type', 'Type'], 
+          totalKey: ['all_pensioner_count', 'total_pensioners', 'count', 'total'], 
+          completionKey: ['completion_ratio', 'completion_rate', 'rate'] 
+        }
+      );
+      setTopPensionerTypes(items);
+    } catch (err) {
+      console.error('❌ Failed to fetch pensioner types:', err);
+      setPTypesError(err.message);
+    } finally {
+      setPTypesLoading(false);
+    }
+  };
+  
+  // JSX: Top PSAs tab rendering (3 columns, consistent with States/Banks)
   return (
     <Paper elevation={0} sx={{ 
-      padding: '10px', 
+      padding: { xs: '6px', sm: '8px', md: '10px' }, 
       borderRadius: '8px',
       border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
       marginBottom: 0,
       height: '100%',
+      minHeight: { xs: '280px', sm: '320px', md: '360px' },
+      maxHeight: { xs: '400px', sm: '450px', md: '500px' },
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
       backgroundColor: theme.palette.background.paper
     }}>
       <Box sx={{ 
@@ -187,7 +394,7 @@ const StateAnalytics = ({
         alignItems: 'center',
         marginBottom: '8px'
       }}>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '13px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '11px', sm: '12px', md: '13px' }, fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           STATE ANALYTICS
         </Typography>
         <Typography
@@ -222,6 +429,7 @@ const StateAnalytics = ({
                 '& .MuiTabs-indicator': { backgroundColor: theme.palette.primary.main, height: '2px' }
               }}
             >
+              {/* States tab */}
               <Tab 
                 icon={<LocationCityIcon fontSize="small" />} 
                 iconPosition="start"
@@ -229,16 +437,20 @@ const StateAnalytics = ({
                 disableRipple
                 sx={{ 
                   textTransform: 'none', 
-                  fontSize: '11px',
-                  minHeight: '28px',
-                  padding: '0 10px',
+                  fontSize: { xs: '9px', sm: '10px', md: '11px' },
+                  minHeight: { xs: '24px', sm: '26px', md: '28px' },
+                  padding: { xs: '0 4px', sm: '0 6px', md: '0 8px' },
                   fontFamily: 'Inter, Roboto, Arial, sans-serif',
                   backgroundColor: isDarkMode ? theme.palette.background.default : '#f3f5f7',
                   color: theme.palette.text.secondary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                   '&.Mui-selected': { backgroundColor: isDarkMode ? theme.palette.background.paper : '#fff', color: theme.palette.primary.main },
                   '&:not(:last-of-type)': { borderRight: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }
                 }} 
               />
+              {/* Top Banks */}
               <Tab 
                 icon={<AccountBalanceIcon fontSize="small" />} 
                 iconPosition="start"
@@ -256,10 +468,29 @@ const StateAnalytics = ({
                   '&:not(:last-of-type)': { borderRight: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }
                 }} 
               />
+              {/* Top PSA  */}
+              <Tab 
+                icon={<CategoryIcon fontSize="small" />} 
+                iconPosition="start"
+                label="Top PSA" 
+                disableRipple
+                sx={{ 
+                  textTransform: 'none', 
+                  fontSize: '11px',
+                  minHeight: '28px',
+                  padding: '0 10px',
+                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
+                  backgroundColor: isDarkMode ? theme.palette.background.default : '#f3f5f7',
+                  color: theme.palette.text.secondary,
+                  '&.Mui-selected': { backgroundColor: isDarkMode ? theme.palette.background.paper : '#fff', color: theme.palette.primary.main },
+                  '&:not(:last-of-type)': { borderRight: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }
+                }} 
+              />
+              {/* Top Central pensioner Types */}``
               <Tab 
                 icon={<BusinessIcon fontSize="small" />} 
                 iconPosition="start"
-                label="Top PSAs" 
+                label="Central" 
                 disableRipple
                 sx={{ 
                   textTransform: 'none', 
@@ -277,8 +508,15 @@ const StateAnalytics = ({
         </Box>
       </Box>
       
-      <Box sx={{ padding: '4px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Top States tab remains as-is */}
+      <Box sx={{ 
+        padding: { xs: '2px 0', sm: '3px 0', md: '4px 0' }, 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'auto',
+        minHeight: 0
+      }}>
+        {/* Top States tab */}
         {tabValue === 0 && (
           <Box>
             {/* Header row */}
@@ -295,39 +533,49 @@ const StateAnalytics = ({
                 sx={{
                   fontWeight: 600,
                   color: theme.palette.text.primary,
-                  fontSize: '12px',
+                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
                   fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 50%',
+                  flex: { xs: '1 1 45%', sm: '0 0 50%' },
                   textAlign: 'left',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  pr: 1,
                 }}
               >
-                {topStatesLeftLabel}
+                {leftLabel["state"]}
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
                   color: theme.palette.text.primary,
-                  fontSize: '12px',
+                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
                   fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 25%',
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
                   textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {topStatesMiddleLabel}
+                {middleLabel}
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
                   fontWeight: 600,
                   color: theme.palette.text.primary,
-                  fontSize: '12px',
+                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
                   fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 25%',
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
                   textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {topStatesRightLabel}
+                {rightLabel}
               </Typography>
             </Box>
 
@@ -394,12 +642,12 @@ const StateAnalytics = ({
                           textAlign: 'center',
                         }}
                       >
-                        {item.completionRate.toFixed(1)}%
+                        {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
                       </Typography>
                     </Box>
                   ))
                 ) : (
-                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
+                  <Typography variant="body2" sx={getResponsiveMessageStyle()}>
                     No data found.
                   </Typography>
                 )}
@@ -408,7 +656,7 @@ const StateAnalytics = ({
           </Box>
         )}
         
-        {/* Top Banks tab - now rendered like Top States */}
+        {/* Top Banks tab*/}
         {tabValue === 1 && (
           <Box>
             {/* Header row */}
@@ -423,51 +671,43 @@ const StateAnalytics = ({
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: '12px',
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 50%',
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 45%', sm: '0 0 50%' },
                   textAlign: 'left',
+                  pr: 1,
                 }}
               >
-                {topBanksLeftLabel}
+                {leftLabel["bank"]}
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: '12px',
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 25%',
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
                   textAlign: 'center',
                 }}
               >
-                {topBanksMiddleLabel}
+                {middleLabel}
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: '12px',
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: '0 0 25%',
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
                   textAlign: 'center',
                 }}
               >
-                {topBanksRightLabel}
+                {rightLabel}
               </Typography>
             </Box>
 
             {banksLoading && (
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
+              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
                 Loading…
               </Typography>
             )}
             {banksError && (
-              <Typography variant="body2" sx={{ color: theme.palette.error.main, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
+              <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                 {banksError}
               </Typography>
             )}
@@ -493,10 +733,14 @@ const StateAnalytics = ({
                         variant="body2"
                         sx={{
                           color: theme.palette.text.secondary,
-                          fontSize: '12px',
+                          fontSize: { xs: '10px', sm: '11px', md: '12px' },
                           fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 50%',
+                          flex: { xs: '1 1 45%', sm: '0 0 50%' },
                           textAlign: 'left',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          pr: 1,
                         }}
                       >
                         {idx + 1}. {item.name}
@@ -505,10 +749,13 @@ const StateAnalytics = ({
                         variant="body2"
                         sx={{
                           color: theme.palette.text.secondary,
-                          fontSize: '12px',
+                          fontSize: { xs: '10px', sm: '11px', md: '12px' },
                           fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 25%',
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
                           textAlign: 'center',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {item.totalPensioners}
@@ -517,13 +764,247 @@ const StateAnalytics = ({
                         variant="body2"
                         sx={{
                           color: theme.palette.text.secondary,
-                          fontSize: '12px',
+                          fontSize: { xs: '10px', sm: '11px', md: '12px' },
                           fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 25%',
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                          textAlign: 'center',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
+                      </Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={getResponsiveMessageStyle()}>
+                    No data found.
+                  </Typography>
+                )}
+              </>
+            )}
+          </Box>
+        )}
+        
+        {/* Top PSAs tab */}
+        {tabValue === 2 && (
+          <Box>
+            {/* Header row */}
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '3px 0',
+                borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 45%', sm: '0 0 50%' },
+                  textAlign: 'left',
+                  pr: 1,
+                }}
+              >
+                {leftLabel["PSA"]}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                  textAlign: 'center',
+                }}
+              >
+                {middleLabel}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                  textAlign: 'center',
+                }}
+              >
+                {rightLabel}
+              </Typography>
+            </Box>
+
+            {psaLoading && (
+              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
+                Loading…
+              </Typography>
+            )}
+            {psaError && (
+              <Typography variant="body2" sx={getResponsiveErrorStyle()}>
+                {psaError}
+              </Typography>
+            )}
+            {!psaLoading && !psaError && (
+              <>
+                {topPSAs.length > 0 ? (
+                  topPSAs.map((item, idx) => (
+                    <Box
+                      key={item.name + idx}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '3px 0',
+                        borderBottom:
+                          idx < topPSAs.length - 1
+                            ? isDarkMode
+                              ? '1px solid #415A77'
+                              : '1px solid #eaeaea'
+                            : 'none',
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 45%', sm: '0 0 50%' },
+                          textAlign: 'left',
+                          pr: 1,
+                        }}
+                      >
+                        {idx + 1}. {item.name}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
                           textAlign: 'center',
                         }}
                       >
-                        {item.completionRate.toFixed(1)}%
+                        {item.totalPensioners}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
+                      </Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={getResponsiveMessageStyle()}>
+                    No data found.
+                  </Typography>
+                )}
+              </>
+            )}
+          </Box>
+        )}
+
+        {/* Top Categories tab */}
+        {tabValue === 3 && (
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '3px 0',
+                borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 45%', sm: '0 0 50%' },
+                  textAlign: 'left',
+                  pr: 1,
+                }}
+              >
+                {leftLabel["central_subtype"]}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                  textAlign: 'center',
+                }}
+              >
+                {middleLabel}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  ...getResponsiveHeaderStyle(),
+                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                  textAlign: 'center',
+                }}
+              >
+                {rightLabel}
+              </Typography>
+            </Box>
+
+            {categoriesLoading && (
+              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
+                Loading…
+              </Typography>
+            )}
+            {categoriesError && (
+              <Typography variant="body2" sx={getResponsiveErrorStyle()}>
+                {categoriesError}
+              </Typography>
+            )}
+            {!categoriesLoading && !categoriesError && (
+              <>
+                {topCategories.length > 0 ? (
+                  topCategories.map((item, idx) => (
+                    <Box
+                      key={item.name + idx}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '3px 0',
+                        borderBottom:
+                          idx < topCategories.length - 1
+                            ? isDarkMode
+                              ? '1px solid #415A77'
+                              : '1px solid #eaeaea'
+                            : 'none',
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 45%', sm: '0 0 50%' },
+                          textAlign: 'left',
+                          pr: 1,
+                        }}
+                      >
+                        {idx + 1}. {item.name}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.totalPensioners}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          ...getResponsiveDataStyle(),
+                          flex: { xs: '1 1 27%', sm: '0 0 25%' },
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
                       </Typography>
                     </Box>
                   ))
@@ -536,26 +1017,6 @@ const StateAnalytics = ({
             )}
           </Box>
         )}
-        
-        {/* Top PSAs tab unchanged */}
-        {tabValue === 2 && (
-          <Box>
-            {[1, 2, 3, 4, 5, 6, 7].map((item) => (
-              <Box 
-                key={item}
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  padding: '3px 0',
-                  borderBottom: item < 7 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none'
-                }}
-              >
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>{item}. ---</Typography>
-                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>---</Typography>
-              </Box>
-            ))}
-          </Box>
-        )}
       </Box>
       
 
@@ -564,23 +1025,3 @@ const StateAnalytics = ({
 };
 
 export default StateAnalytics;
-
-// Helpers to avoid duplicates across API items
-const canon = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-const dedupeByNameKeepBest = (arr) => {
-  const best = new Map();
-  arr.forEach((item) => {
-    const key = canon(item.name);
-    const current = best.get(key);
-    if (!current) {
-      best.set(key, item);
-      return;
-    }
-    // Prefer higher completion rate; tie-break by total pensioners
-    const cmp =
-      (item.completionRate || 0) - (current.completionRate || 0) ||
-      (item.totalPensioners || 0) - (current.totalPensioners || 0);
-    if (cmp > 0) best.set(key, item);
-  });
-  return Array.from(best.values());
-};
