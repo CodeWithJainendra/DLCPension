@@ -660,9 +660,9 @@ const StateAnalytics = ({
             )}
             {!loading && !error && (
               <>
-                {(expandedStates ?? topStates)
+                {topStates
                   .filter((item) => selectedState === 'ALL' || item.name === selectedState).length > 0 ? (
-                  (expandedStates ?? topStates)
+                  topStates
                     .filter((item) => selectedState === 'ALL' || item.name === selectedState)
                     .map((item, idx) => (
                       <Box
@@ -672,7 +672,7 @@ const StateAnalytics = ({
                           justifyContent: 'space-between',
                           padding: '4px 0',
                           borderBottom:
-                            idx < (expandedStates ?? topStates).length - 1
+                            idx < topStates.length - 1
                               ? isDarkMode
                                 ? '1px solid #415A77'
                                 : '1px solid #eaeaea'
