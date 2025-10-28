@@ -49,14 +49,14 @@ function RightColumn() {
           pointerEvents: showAnalytics ? 'auto' : 'none'
         }}
       >
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <Box sx={{ flex: '0 0 20%', minHeight: 0 }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: '0 0 20%', minHeight: 0, mb: '20px' }}>
             <AgeBreakdown />
           </Box>
-          <Box sx={{ flex: '1 1 50%', minHeight: 0 }}>
+          <Box sx={{ flex: '1 1 50%', minHeight: 0, mb: '10px' }}>
             <StateAnalytics />
           </Box>
-          <Box sx={{ flex: '0 0 30%', minHeight: 0, mt: '-10px' }}>
+          <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
             <VerificationMethods />
           </Box>
         </Box>

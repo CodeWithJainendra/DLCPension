@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Paper, Tabs, Tab, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Tabs, Tab, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -21,6 +22,8 @@ const StateAnalytics = ({
 }) => {
   const [tabValue, setTabValue] = useState(0);
   const { isDarkMode, theme } = useTheme();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   // Responsive styling utilities
   const getResponsiveHeaderStyle = () => ({
@@ -80,11 +83,63 @@ const StateAnalytics = ({
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
+  
+  const handleShowMore = async () => {
+    setIsModalOpen(true);
+
+    // Detailed Top States
+    if (tabValue === 0 && !expandedStates) {
+      try {
+        setLoading(true);
+        setError(null);
+        const items = await fetchTopData(
+          'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/detailed-top-states',
+          {
+            nameKey: ['state'],
+            totalKey: ['all_pensioner_count'],
+            completionKey: ['completion_ratio'],
+          },
+          60 * 1000, // detailed cache TTL
+          null       // no limit, full list
+        );
+        setExpandedStates(items);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Detailed Top Banks
+    if (tabValue === 1 && !expandedBanks) {
+      try {
+        setBanksLoading(true);
+        setBanksError(null);
+        const items = await fetchTopData(
+          'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/detailed-top-banks',
+          {
+            nameKey: ['bank_name'],
+            totalKey: ['all_pensioner_count'],
+            completionKey: ['completion_ratio'],
+          },
+          60 * 1000,
+          null
+        );
+        setExpandedBanks(items);
+      } catch (err) {
+        setBanksError(err.message);
+      } finally {
+        setBanksLoading(false);
+      }
+    }
+  };
 
   const [topStates, setTopStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const hasFetched = useRef(false);
+  const [expandedStates, setExpandedStates] = useState(null);
+  const [expandedBanks, setExpandedBanks] = useState(null);
 
   useEffect(() => {
     if (hasFetched.current) return;
@@ -98,7 +153,7 @@ const StateAnalytics = ({
       setError(null);
 
       const apiData = await fetchWithCache(
-        'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/public-top-states',
+        'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states',
         {},
         5 * 60 * 1000 // 5 minutes cache
       );
@@ -189,27 +244,26 @@ const StateAnalytics = ({
   };
 
   // Reusable fetch+normalize for top performers
-  const fetchTopData = async (endpoint, { nameKey, totalKey, completionKey }, ttlMs = 5 * 60 * 1000) => {
+  const fetchTopData = async (
+    endpoint,
+    { nameKey, totalKey, completionKey },
+    ttlMs = 5 * 60 * 1000,
+    limit = 5
+  ) => {
     const apiData = await fetchWithCache(endpoint, {}, ttlMs);
 
-    // Accept array payloads or object payloads keyed by indices; ignore non-entry metadata
+    // Accept array payloads OR object payloads where data sits in a known key
     const payload = apiData?.data ?? apiData;
     let list = [];
 
     if (Array.isArray(payload)) {
       list = payload;
-    } 
-    // else if (payload && typeof payload === 'object') {
-    //   list = Object.values(payload).filter(
-    //     (v) =>
-    //       v &&
-    //       typeof v === 'object' &&
-    //       ((Array.isArray(nameKey) ? nameKey.some(k => k in v) : nameKey in v) ||
-    //        (Array.isArray(totalKey) ? totalKey.some(k => k in v) : totalKey in v) ||
-    //        (Array.isArray(completionKey) ? completionKey.some(k => k in v) : completionKey in v))
-    //   );
-    // } 
-    else {
+    } else if (payload && typeof payload === 'object') {
+      // Support object-wrapped arrays without repeating code
+      if (Array.isArray(payload.states)) list = payload.states;
+      else if (Array.isArray(payload.banks)) list = payload.banks;
+      else list = [];
+    } else {
       list = [];
     }
 
@@ -251,13 +305,14 @@ const StateAnalytics = ({
       return { name, totalPensioners, completionRate };
     });
     
-    // Filter out items with unknown names or zero pensioners
-    const filtered = normalized.filter(item => 
-      item.name !== 'Unknown' && item.totalPensioners > 0
+    // Filter unknown or zero totals
+    const filtered = normalized.filter(
+      (item) => item.name !== 'Unknown' && item.totalPensioners > 0
     );
 
     const unique = dedupeByNameKeepBest(filtered.length > 0 ? filtered : normalized);
-    return unique.sort((a, b) => b.completionRate - a.completionRate).slice(0, 5);
+    const sorted = unique.sort((a, b) => b.completionRate - a.completionRate);
+    return typeof limit === 'number' ? sorted.slice(0, limit) : sorted;
   };
 
   useEffect(() => {
@@ -396,6 +451,7 @@ const StateAnalytics = ({
   
   // JSX: Top PSAs tab rendering (3 columns, consistent with States/Banks)
   return (
+    <>
     <Paper elevation={0} sx={{ 
       padding: { xs: '6px', sm: '8px', md: '5px' }, 
       borderRadius: '8px',
@@ -426,6 +482,7 @@ const StateAnalytics = ({
             color: theme.palette.primary.main, 
             cursor: 'pointer'
           }}
+          onClick={handleShowMore}
         >
           Show more
         </Typography>
@@ -1037,6 +1094,187 @@ const StateAnalytics = ({
       
 
     </Paper>
+
+    <Dialog
+      open={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      fullWidth
+      maxWidth="md"
+      PaperProps={{
+        sx: {
+          borderRadius: '12px',
+          backgroundColor: theme.palette.background.paper,
+          border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea'
+        }
+      }}
+      BackdropProps={{
+        sx: {
+          backdropFilter: 'blur(4px)',
+          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'
+        }
+      }}
+    >
+      <DialogTitle
+        component="div"
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}
+      >
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{ fontWeight: 'bold', fontSize: { xs: '13px', sm: '14px', md: '16px' }, color: theme.palette.text.primary }}
+        >
+          State Analytics
+        </Typography>
+        <IconButton aria-label="close" onClick={() => setIsModalOpen(false)} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ pt: 1 }}>
+
+        <Box sx={{ position: 'relative', maxHeight: { xs: '60vh', sm: '65vh' }, overflow: 'auto' }}>
+          {(() => {
+            const isTabLoading =
+              tabValue === 0 ? loading :
+              tabValue === 1 ? banksLoading :
+              tabValue === 2 ? psaLoading :
+              tabValue === 3 ? categoriesLoading :
+              tabValue === 4 ? ptypesLoading : false;
+            return <LoadingOverlay show={isTabLoading} />;
+          })()}
+
+          {tabValue === 0 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>{leftLabel['state']}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
+              </Box>
+              {error && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{error}</Typography>)}
+              {!loading && !error && (
+                <>
+                  {(expandedStates ?? topStates).length > 0 ? (
+                    (expandedStates ?? topStates).map((item, idx) => (
+                      <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedStates ?? topStates).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={getResponsiveMessageStyle()}>No data found.</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
+
+          {tabValue === 1 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>{leftLabel['bank']}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
+              </Box>
+              {banksError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{banksError}</Typography>)}
+              {!banksLoading && !banksError && (
+                <>
+                  {(expandedBanks ?? topBanks).length > 0 ? (
+                    (expandedBanks ?? topBanks).map((item, idx) => (
+                      <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedBanks ?? topBanks).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={getResponsiveMessageStyle()}>No data found.</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
+
+          {tabValue === 2 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>{leftLabel['PSA']}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
+              </Box>
+              {psaError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{psaError}</Typography>)}
+              {!psaLoading && !psaError && (
+                <>
+                  {topPSAs.length > 0 ? (
+                    topPSAs.map((item, idx) => (
+                      <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topPSAs.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={getResponsiveMessageStyle()}>No data found.</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
+
+          {tabValue === 3 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>Central types</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
+              </Box>
+              {categoriesError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{categoriesError}</Typography>)}
+              {!categoriesLoading && !categoriesError && (
+                <>
+                  {topCategories.length > 0 ? (
+                    topCategories.map((item, idx) => (
+                      <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topCategories.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={getResponsiveMessageStyle()}>No data found.</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
+
+          {tabValue === 4 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>Pensioner types</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
+                <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
+              </Box>
+              {ptypesError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{ptypesError}</Typography>)}
+              {!ptypesLoading && !ptypesError && (
+                <>
+                  {topPensionerTypes.length > 0 ? (
+                    topPensionerTypes.map((item, idx) => (
+                      <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topPensionerTypes.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
+                        <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
+                      </Box>
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={getResponsiveMessageStyle()}>No data found.</Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 
