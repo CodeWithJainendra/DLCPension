@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Paper, Tabs, Tab, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import { Box, Typography, Paper, Tabs, Tab, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton, FormControl, Select, MenuItem } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -23,6 +23,7 @@ const StateAnalytics = ({
   const [tabValue, setTabValue] = useState(0);
   const { isDarkMode, theme } = useTheme();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedState, setSelectedState] = useState('ALL');
 
 
   // Responsive styling utilities
@@ -31,18 +32,20 @@ const StateAnalytics = ({
     color: theme.palette.text.primary,
     fontSize: { xs: '10px', sm: '11px', md: '12px' },
     fontFamily: 'Inter, Roboto, Arial, sans-serif',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    // allow wrapping for long labels
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   });
 
   const getResponsiveDataStyle = () => ({
     color: theme.palette.text.secondary,
     fontSize: { xs: '10px', sm: '11px', md: '12px' },
     fontFamily: 'Inter, Roboto, Arial, sans-serif',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    // allow wrapping for long values
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   });
 
   const getResponsiveMessageStyle = () => ({
@@ -368,9 +371,9 @@ const StateAnalytics = ({
       const items = await fetchTopData(
         'https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa',
         { 
-          nameKey: ['psa', 'PSA', 'psa_name', 'PSA_name'], 
-          totalKey: ['total_pensioners', 'all_pensioner_count', 'count', 'total'], 
-          completionKey: ['completion_ratio', 'completion_rate', 'rate'] 
+          nameKey: ['psa'], 
+          totalKey: ['total_pensioners'], 
+          completionKey: ['completion_ratio'] 
         }
       );
       setTopPSAs(items);
@@ -435,9 +438,9 @@ const StateAnalytics = ({
       const items = await fetchTopData(
         'https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types',
         { 
-          nameKey: ['Pensioner_type', 'pensioner_type', 'type', 'Type'], 
-          totalKey: ['all_pensioner_count', 'total_pensioners', 'count', 'total'], 
-          completionKey: ['completion_ratio', 'completion_rate', 'rate'] 
+          nameKey: ['Pensioner_subtype'], 
+          totalKey: ['all_pensioner_count'], 
+          completionKey: ['completion_ratio'] 
         }
       );
       setTopPensionerTypes(items);
@@ -456,13 +459,11 @@ const StateAnalytics = ({
       padding: { xs: '6px', sm: '8px', md: '5px' }, 
       borderRadius: '8px',
       border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-      marginBottom: '15px',
-      height: 'auto',
-      minHeight: { xs: '280px', sm: '320px', md: '280px' },
-      maxHeight: { xs: '400px', sm: '450px', md: '200px' },
+      marginBottom: '100px',
+      height: '250px',
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
+      overflow: 'visible',
       backgroundColor: theme.palette.background.paper
     }}>
       <Box sx={{ 
@@ -588,11 +589,10 @@ const StateAnalytics = ({
       
       <Box sx={{ 
         padding: { xs: '2px 0', sm: '3px 0', md: '4px 0' }, 
-        flex: 1, 
+        flex: 'none', 
         display: 'flex', 
         flexDirection: 'column',
-        overflow: 'auto',
-        minHeight: 0,
+        overflow: 'visible',
         position: 'relative' // enable overlay positioning
       }}>
         {/* Spinner overlay for the active tab */}
@@ -613,23 +613,17 @@ const StateAnalytics = ({
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                padding: '3px 0',
+                padding: '4px 0',
                 borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
               }}
             >
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                  textAlign: 'left',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  pr: 1,
+                  ...getResponsiveHeaderStyle(),
+                  fontSize: { xs: '10px' },
+                  flex: '0 0 50%',
+                  textAlign: 'left'
                 }}
               >
                 {leftLabel["state"]}
@@ -637,15 +631,10 @@ const StateAnalytics = ({
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  ...getResponsiveHeaderStyle(),
+                  fontSize: { xs: '10px' },
+                  flex: '0 0 25%',
+                  textAlign: 'center'
                 }}
               >
                 {middleLabel}
@@ -653,15 +642,10 @@ const StateAnalytics = ({
               <Typography
                 variant="body2"
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                  fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                  flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  ...getResponsiveHeaderStyle(),
+                  fontSize: { xs: '10px' },
+                  flex: '0 0 25%',
+                  textAlign: 'center'
                 }}
               >
                 {rightLabel}
@@ -670,67 +654,66 @@ const StateAnalytics = ({
 
             {/* Loading indicator replaced by overlay */}
             {error && (
-              <Typography variant="body2" sx={{ color: theme.palette.error.main, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
+              <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                 {error}
               </Typography>
             )}
             {!loading && !error && (
               <>
-                {topStates.length > 0 ? (
-                  topStates.map((item, idx) => (
-                    <Box
-                      key={item.name + idx}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        padding: '3px 0',
-                        borderBottom:
-                          idx < topStates.length - 1
-                            ? isDarkMode
-                              ? '1px solid #415A77'
-                              : '1px solid #eaeaea'
-                            : 'none',
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
+                {(expandedStates ?? topStates)
+                  .filter((item) => selectedState === 'ALL' || item.name === selectedState).length > 0 ? (
+                  (expandedStates ?? topStates)
+                    .filter((item) => selectedState === 'ALL' || item.name === selectedState)
+                    .map((item, idx) => (
+                      <Box
+                        key={item.name + idx}
                         sx={{
-                          color: theme.palette.text.secondary,
-                          fontSize: '12px',
-                          fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 50%',
-                          // keep state names left-aligned for readability
-                          textAlign: 'left',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '4px 0',
+                          borderBottom:
+                            idx < (expandedStates ?? topStates).length - 1
+                              ? isDarkMode
+                                ? '1px solid #415A77'
+                                : '1px solid #eaeaea'
+                              : 'none',
                         }}
                       >
-                        {idx + 1}. {item.name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                          fontSize: '12px',
-                          fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 25%',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {item.totalPensioners}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                          fontSize: '12px',
-                          fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                          flex: '0 0 25%',
-                          textAlign: 'center',
-                        }}
-                      >
-                        {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
-                      </Typography>
-                    </Box>
-                  ))
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            ...getResponsiveDataStyle(),
+                            fontSize: { xs: '10px' },
+                            flex: '0 0 50%',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {idx + 1}. {item.name}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            ...getResponsiveDataStyle(),
+                            fontSize: { xs: '10px' },
+                            flex: '0 0 25%',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {item.totalPensioners}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            ...getResponsiveDataStyle(),
+                            fontSize: { xs: '10px' },
+                            flex: '0 0 25%',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
+                        </Typography>
+                      </Box>
+                    ))
                 ) : (
                   <Typography variant="body2" sx={getResponsiveMessageStyle()}>
                     No data found.
@@ -1099,10 +1082,10 @@ const StateAnalytics = ({
       open={isModalOpen}
       onClose={() => setIsModalOpen(false)}
       fullWidth
-      maxWidth="md"
+      maxWidth="sm"
       PaperProps={{
         sx: {
-          borderRadius: '12px',
+          borderRadius: '10px',
           backgroundColor: theme.palette.background.paper,
           border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea'
         }
@@ -1116,22 +1099,40 @@ const StateAnalytics = ({
     >
       <DialogTitle
         component="div"
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1, gap: '8px' }}
       >
         <Typography
           variant="h6"
           component="div"
-          sx={{ fontWeight: 'bold', fontSize: { xs: '13px', sm: '14px', md: '16px' }, color: theme.palette.text.primary }}
+          sx={{ fontWeight: 'bold', fontSize: '13px', color: theme.palette.text.primary }}
         >
           State Analytics
         </Typography>
-        <IconButton aria-label="close" onClick={() => setIsModalOpen(false)} size="small">
-          <CloseIcon />
-        </IconButton>
+        
+        {/* Filter dropdown before X */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              displayEmpty
+              renderValue={(val) => (val === 'ALL' ? 'All States' : val)}
+              sx={{ fontSize: '12px' }}
+            >
+              <MenuItem value="ALL" sx={{ fontSize: '12px' }}>All States</MenuItem>
+              {Array.from(new Set((expandedStates ?? topStates).map((s) => s.name))).map((name) => (
+                <MenuItem key={name} value={name} sx={{ fontSize: '12px' }}>{name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <IconButton aria-label="close" onClick={() => setIsModalOpen(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
       </DialogTitle>
       <DialogContent dividers sx={{ pt: 1 }}>
-
-        <Box sx={{ position: 'relative', maxHeight: { xs: '60vh', sm: '65vh' }, overflow: 'auto' }}>
+        <Box sx={{ position: 'relative', maxHeight: '50vh', overflow: 'auto' }}>
           {(() => {
             const isTabLoading =
               tabValue === 0 ? loading :
@@ -1144,6 +1145,8 @@ const StateAnalytics = ({
 
           {tabValue === 0 && (
             <Box>
+
+              
               <Box sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }}>
                 <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 50%', textAlign: 'left' }}>{leftLabel['state']}</Typography>
                 <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
@@ -1152,8 +1155,11 @@ const StateAnalytics = ({
               {error && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{error}</Typography>)}
               {!loading && !error && (
                 <>
-                  {(expandedStates ?? topStates).length > 0 ? (
-                    (expandedStates ?? topStates).map((item, idx) => (
+                  {(expandedStates ?? topStates)
+                    .filter((item) => selectedState === 'ALL' || item.name === selectedState).length > 0 ? (
+                    (expandedStates ?? topStates)
+                      .filter((item) => selectedState === 'ALL' || item.name === selectedState)
+                      .map((item, idx) => (
                       <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedStates ?? topStates).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                         <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                         <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>

@@ -142,6 +142,6 @@ const VerificationMethods = () => {
       </Dialog>
     </>
   );
-};
+}
 
 export default VerificationMethods;

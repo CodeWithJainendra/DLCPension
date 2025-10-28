@@ -53,7 +53,7 @@ function RightColumn() {
           <Box sx={{ flex: '0 0 20%', minHeight: 0, mb: '20px' }}>
             <AgeBreakdown />
           </Box>
-          <Box sx={{ flex: '1 1 50%', minHeight: 0, mb: '10px' }}>
+          <Box sx={{ flex: '1 1 50%', minHeight: 0,mb: 0 }}>
             <StateAnalytics />
           </Box>
           <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
