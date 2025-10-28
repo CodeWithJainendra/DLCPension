@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Paper, Tabs, Tab } from '@mui/material';
+import { Box, Typography, Paper, Tabs, Tab, CircularProgress } from '@mui/material';
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -53,6 +53,29 @@ const StateAnalytics = ({
     fontSize: { xs: '10px', sm: '11px', md: '12px' },
     fontFamily: 'Inter, Roboto, Arial, sans-serif'
   });
+
+  // Reusable centered loading overlay for the card content
+  const LoadingOverlay = ({ show }) =>
+    show ? (
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(1px)',
+          zIndex: 1
+        }}
+      >
+        <CircularProgress sx={{ color: theme.palette.primary.main }} size={28} />
+      </Box>
+    ) : null;
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -310,9 +333,7 @@ const StateAnalytics = ({
       setCategoriesError(null);
 
       // Try multiple candidates to avoid 404s due to path variants
-      const candidates = [
-        'https://samar.iitk.ac.in/dlc-pension-data-api/api/top-categories', // direct
-        '/api/top-categories',                                               // dev proxy
+      const candidates = [                                             // dev proxy
         'https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types', // fallback (different shape)
       ];
 
@@ -323,9 +344,9 @@ const StateAnalytics = ({
             const items = await fetchTopData(
               endpoint,
               { 
-                nameKey: ['category', 'Category', 'pensioner_category', 'Pensioner_category', 'Pensioner_type', 'type', 'TYPE', 'name', 'Name'], 
-                totalKey: ['total_pensioners', 'all_pensioner_count', 'count', 'total'], 
-                completionKey: ['completion_ratio', 'completion_rate', 'rate', 'completionRate', 'percentage'] 
+                nameKey: ['Pensioner_subtype'], 
+                totalKey: ['all_pensioner_count'], 
+                completionKey: ['completion_ratio'] 
               }
             );
             if (items && items.length >= 0) return items;
@@ -376,13 +397,13 @@ const StateAnalytics = ({
   // JSX: Top PSAs tab rendering (3 columns, consistent with States/Banks)
   return (
     <Paper elevation={0} sx={{ 
-      padding: { xs: '6px', sm: '8px', md: '10px' }, 
+      padding: { xs: '6px', sm: '8px', md: '5px' }, 
       borderRadius: '8px',
       border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-      marginBottom: 0,
-      height: '100%',
-      minHeight: { xs: '280px', sm: '320px', md: '360px' },
-      maxHeight: { xs: '400px', sm: '450px', md: '500px' },
+      marginBottom: '15px',
+      height: 'auto',
+      minHeight: { xs: '280px', sm: '320px', md: '280px' },
+      maxHeight: { xs: '400px', sm: '450px', md: '200px' },
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -392,7 +413,7 @@ const StateAnalytics = ({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: '8px'
+        marginBottom: '5px'
       }}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '11px', sm: '12px', md: '13px' }, fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           STATE ANALYTICS
@@ -514,8 +535,19 @@ const StateAnalytics = ({
         display: 'flex', 
         flexDirection: 'column',
         overflow: 'auto',
-        minHeight: 0
+        minHeight: 0,
+        position: 'relative' // enable overlay positioning
       }}>
+        {/* Spinner overlay for the active tab */}
+        {(() => {
+          const isTabLoading =
+            tabValue === 0 ? loading :
+            tabValue === 1 ? banksLoading :
+            tabValue === 2 ? psaLoading :
+            tabValue === 3 ? categoriesLoading :
+            tabValue === 4 ? ptypesLoading : false;
+          return <LoadingOverlay show={isTabLoading} />;
+        })()}
         {/* Top States tab */}
         {tabValue === 0 && (
           <Box>
@@ -579,11 +611,7 @@ const StateAnalytics = ({
               </Typography>
             </Box>
 
-            {loading && (
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
-                Loading…
-              </Typography>
-            )}
+            {/* Loading indicator replaced by overlay */}
             {error && (
               <Typography variant="body2" sx={{ color: theme.palette.error.main, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
                 {error}
@@ -701,11 +729,7 @@ const StateAnalytics = ({
               </Typography>
             </Box>
 
-            {banksLoading && (
-              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                Loading…
-              </Typography>
-            )}
+            {/* Loading indicator replaced by overlay */}
             {banksError && (
               <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                 {banksError}
@@ -832,11 +856,7 @@ const StateAnalytics = ({
               </Typography>
             </Box>
 
-            {psaLoading && (
-              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                Loading…
-              </Typography>
-            )}
+            {/* Loading indicator replaced by overlay */}
             {psaError && (
               <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                 {psaError}
@@ -947,11 +967,7 @@ const StateAnalytics = ({
               </Typography>
             </Box>
 
-            {categoriesLoading && (
-              <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                Loading…
-              </Typography>
-            )}
+            {/* Loading indicator replaced by overlay */}
             {categoriesError && (
               <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                 {categoriesError}

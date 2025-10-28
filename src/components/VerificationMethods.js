@@ -66,7 +66,7 @@ const VerificationMethods = () => {
           backgroundColor: isDarkMode ? theme.palette.background.paper : '#ffffff',
           marginBottom: 0,
           minHeight: '132px',
-          height: '100%',
+          height: 'auto',
           display: 'flex',
           flexDirection: 'column',
           cursor: 'pointer',

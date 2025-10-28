@@ -56,7 +56,7 @@ function RightColumn() {
           <Box sx={{ flex: '1 1 50%', minHeight: 0 }}>
             <StateAnalytics />
           </Box>
-          <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
+          <Box sx={{ flex: '0 0 30%', minHeight: 0, mt: '-10px' }}>
             <VerificationMethods />
           </Box>
         </Box>
