@@ -11,11 +11,12 @@ import { fetchWithCache } from '../utils/cache';
 // In the StateAnalytics component signature
 const StateAnalytics = () => {
   
+  const tabIndexToInfoMap={0:"state",1:"bank",2:"PSA",3:"central_subtype"}
   const tabInfo = {
     'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['total_pensioners'], completionKey: ['verification_rate'], title:"States" },
-    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['PSA'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
-    'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['bank'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Banks" },
-    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['central_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
+    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['psa'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
+    'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['Bank_name'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Banks" },
+    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['Pensioner_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
   }
   const middleLabel = 'Total Pensioners'
   const rightLabel = 'Completion Rate'
@@ -98,7 +99,9 @@ const StateAnalytics = () => {
 
   const handleTabChange = (event, newValue) => {
     console.log("Tab changed to", newValue);
+    setItemsLoading(true);
     itemsFetched.current = false;
+    currentTabInfo.current = tabInfo[tabIndexToInfoMap[newValue]];
     setTabValue(newValue);
   };
 
@@ -110,7 +113,7 @@ const StateAnalytics = () => {
       try {
         setPopupLoading(true);
         setError(null);
-        const items = await fetchTopData(
+        const items = await _makeAPICallOrFetchFromCache(
           tabInfo["state"].api,
           {
             nameKey: ['state'],
@@ -133,7 +136,7 @@ const StateAnalytics = () => {
       try {
         setItemsLoading(true);
         setItemsError(null);
-        const items = await fetchTopData(
+        const items = await _makeAPICallOrFetchFromCache(
           tabInfo["bank"].api,
           {
             nameKey: ['bank_name'],
@@ -153,13 +156,13 @@ const StateAnalytics = () => {
   };
 
   useEffect(() => {
-    if (itemsFetched.current) return;
-    fetchTopStates();
+    if (tabValue !== 0 && itemsFetched.current) return;
+    fetchTopItemsForList(tabIndexToInfoMap[tabValue]);
     itemsFetched.current = true;
   }, []);
 
  
-  const fetchTopData = async (
+  const _makeAPICallOrFetchFromCache = async (
     endpoint,
     { nameKey, totalKey, completionKey },
     ttlMs = 5 * 60 * 1000,
@@ -169,64 +172,26 @@ const StateAnalytics = () => {
 
     // Accept array payloads OR object payloads where data sits in a known key
     const topItemsList = apiData["data" in apiData? "data" : "topStates"];
-    console.log("Fetched top data...")
+    console.log(topItemsList)
     return topItemsList;
   };
 
   useEffect(() => {
-    // Fetch banks the first time the tab is opened
-  
-    if (tabValue === 1 && !itemsFetched.current) {
-      currentTabInfo = tabInfo["bank"];
+    if (!itemsFetched.current) {
+      currentTabInfo.current = tabInfo[tabIndexToInfoMap[tabValue]];
       itemsFetched.current = true;
-      fetchTopBanks();
-    }
-    // Fetch PSAs on first open of the tab
-    if (tabValue === 2 && !itemsFetched.current) {
-      itemsFetched.current = true;
-      currentTabInfo = tabInfo["PSA"];
-      fetchTopPSAs();
-    }
-    // Fetch Categories on first open of the tab
-    if (tabValue === 3 && !itemsFetched.current) {
-      itemsFetched.current = true;
-      currentTabInfo = tabInfo["central_subtype"];
-      fetchTopCentralPensionSubtypes();
-    }
-    // Fetch Pensioner Types on first open of the tab
-    if (tabValue === 4 && !itemsFetched.current) {
-      itemsFetched.current = true;
-      fetchTopPensionerTypes();
+      fetchTopItemsForList(tabIndexToInfoMap[tabValue]);
     }
   }, [tabValue]);
 
-  const fetchTopStates_old = async () => {
+  
+  const fetchTopItemsForList = async (list_name) => {
     try {
-      setItemsLoading(true);
-      setError(null);
-
-      const top_states_data = await fetchWithCache(
-        tabInfo["state"].api,
-        {},
-        5 * 60 * 1000 // 5 minutes cache
-      );
-
-      setTopItems(top_states_data.topStates);
-    } catch (err) {
-      console.error('Failed to fetch top states:', err);
-      setError(err.message);
-    } finally {
-      setItemsLoading(false);
-    }
-  };
-
-  const fetchTopStates = async () => {
-    try {
-      console.log("Fetching top states...")
+      console.log("Fetching top :", list_name)
       setItemsLoading(true);
       setItemsError(null);
-      const this_tabInfo = tabInfo["state"]
-      const items = await fetchTopData(
+      const this_tabInfo = tabInfo[list_name]
+      const items = await _makeAPICallOrFetchFromCache(
         this_tabInfo.api,
         {
           nameKey: [this_tabInfo.nameKey],
@@ -238,102 +203,14 @@ const StateAnalytics = () => {
       setItemsLoading(false);
       console.log("Loading is false..", itemsLoading.current)
     } catch (err) {
-      console.error('❌ Failed to fetch top banks:', err);
+      console.error('❌ Failed to fetch top items:', list_name,err);
       setItemsError(err.message);
     } finally {
       setItemsLoading(false);
     }
   };
 
-  const fetchTopBanks = async () => {
-    try {
-      setItemsLoading(true);
-      setItemsError(null);
-      const this_tabInfo = tabInfo["bank"]
-      const items = await fetchTopData(
-        this_tabInfo.api,
-        {
-          nameKey: [this_tabInfo.nameKey],
-          totalKey: [this_tabInfo.totalKey],
-          completionKey: [this.tabInfo.completionKey]
-        }
-      );
-      setTopItems(items);
-    } catch (err) {
-      console.error('❌ Failed to fetch top banks:', err);
-      setItemsError(err.message);
-    } finally {
-      setItemsLoading(false);
-    }
-  };
-
-  const fetchTopPSAs = async () => {
-    try {
-      setItemsLoading(true);
-      setItemsError(null);
-      const this_tabInfo = tabInfo["PSA"]
-      const items = await fetchTopData(
-        this_tabInfo.api,
-        {
-          nameKey: [this_tabInfo.nameKey],
-          totalKey: [this_tabInfo.totalKey],
-          completionKey: [this_tabInfo.completionKey]
-        }
-      );
-      setTopItems(items);
-    } catch (err) {
-      console.error('❌ Failed to fetch top PSAs:', err);
-      setItemsError(err.message);
-    } finally {
-      setItemsLoading(false);
-    }
-  };
-
-  const fetchTopCentralPensionSubtypes = async () => {
-    try {
-      setItemsLoading(true);
-      setItemsError(null);
-      const this_tabInfo = tabInfo["central_subtype"]
-      const items = await fetchTopData(
-        this_tabInfo.api,
-          {
-            nameKey: [this_tabInfo.nameKey],
-            totalKey: [this_tabInfo.totalKey],
-            completionKey: [this_tabInfo.completionKey]
-          }
-        );
-        setTopItems(items);
-      } catch (err) {
-        console.error('❌ Failed to fetch pensioner types:', err);
-        setTopItems(err.message);
-      } finally {
-        setItemsLoading(false);
-      }
-    };
-
-    const fetchTopPensionerTypes = async () => {
-      try {
-        setItemsLoading(true);
-        setItemsError(null);
-        const this_tabInfo = tabInfo["PSA"]
-        const items = await fetchTopData(
-          this_tabInfo.api,
-          {
-            nameKey: [this_tabInfo.nameKey],
-            totalKey: [this_tabInfo.totalKey],
-            completionKey: [this_tabInfo.completionKey]
-          }
-        );
-        setTopItems(items);
-      } catch (err) {
-        console.error('❌ Failed to fetch pensioner types:', err);
-        setItemsError(err.message);
-      } finally {
-        setItemsLoading(false);
-      }
-    };
-
-    // JSX: Top PSAs tab rendering (3 columns, consistent with States/Banks)
+  
     return (
       <>
         <Paper elevation={0} sx={{
@@ -354,7 +231,7 @@ const StateAnalytics = () => {
             marginBottom: '5px'
           }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '11px', sm: '12px', md: '13px' }, fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentTabInfo.current.title}
+              {"Analytics"}
             </Typography>
             <Typography
               variant="body2"
@@ -478,12 +355,12 @@ const StateAnalytics = () => {
           }}>
             {/* Spinner overlay for the active tab */}
             {(() => {
-              const isTabLoading = itemsLoading.current;
+              const isTabLoading = itemsLoading.current || !itemsFetched.current;
+              console.log("Is tab loading:", isTabLoading);
               return <LoadingOverlay show={isTabLoading} />;
             })()}
-            {/* Top States tab */}
-            {tabValue === 0 && (
-              <Box>
+            {(
+               <Box>
                 {/* Header row */}
                 <Box
                   sx={{
@@ -537,14 +414,6 @@ const StateAnalytics = () => {
                 
                 {!itemsLoading && !error && (
                   <>
-                    {console.log("top items", topItems.length)}
-                    {console.log("top items", topItems)}
-                    {console.log("Current tab info", currentTabInfo.current)}
-                    {console.log(topItems[0][currentTabInfo.current.nameKey[0]])}
-                    {console.log(topItems[0][currentTabInfo.current.totalKey[0]])}
-                    {console.log(topItems[0][currentTabInfo.current.completionKey[0]])}
- 
-                    
                     {topItems.length > 0 ? (topItems.map((item, idx) => (
                       
                           <Box
@@ -598,357 +467,6 @@ const StateAnalytics = () => {
                         ))
                     ) : (
                       <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                        No data found.
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            )}
-
-            {/* Top Banks tab*/}
-            {tabValue === 1 && (
-              <Box>
-                {/* Header row */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '3px 0',
-                    borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                      textAlign: 'left',
-                      pr: 1,
-                    }}
-                  >
-                    {currentTabInfo.current.leftLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.middleLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.rightLabel}
-                  </Typography>
-                </Box>
-
-                {/* Loading indicator replaced by overlay */}
-                {itemsError.current && (
-                  <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {itemsError.current}
-                  </Typography>
-                )}
-                {!itemsLoading.current && !itemsError.current && (
-                  <>
-                    {topItems.current.length > 0 ? (
-                      topItems.current.map((item, idx) => (
-                        <Box
-                          key={item.name + idx}
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '3px 0',
-                            borderBottom:
-                              idx < topItems.length - 1
-                                ? isDarkMode
-                                  ? '1px solid #415A77'
-                                  : '1px solid #eaeaea'
-                                : 'none',
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: theme.palette.text.secondary,
-                              fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                              fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                              flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                              textAlign: 'left',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              pr: 1,
-                            }}
-                          >
-                            {idx + 1}. {item.name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: theme.palette.text.secondary,
-                              fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                              fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {item.totalPensioners}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: theme.palette.text.secondary,
-                              fontSize: { xs: '10px', sm: '11px', md: '12px' },
-                              fontFamily: 'Inter, Roboto, Arial, sans-serif',
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
-                          </Typography>
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                        No data found.
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            )}
-
-            {/* Top PSAs tab */}
-            {tabValue === 2 && (
-              <Box>
-                {/* Header row */}
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '3px 0',
-                    borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                      textAlign: 'left',
-                      pr: 1,
-                    }}
-                  >
-                    {currentTabInfo.current.leftLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.middleLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.rightLabel}
-                  </Typography>
-                </Box>
-
-                {/* Loading indicator replaced by overlay */}
-                {itemsError && (
-                  <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {itemsError}
-                  </Typography>
-                )}
-                {!itemsLoading.current && !itemsError.current && (
-                  <>
-                    {topItems.length > 0 ? (
-                      topItems.map((item, idx) => (
-                        <Box
-                          key={item.name + idx}
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '3px 0',
-                            borderBottom:
-                              idx < topItems.length - 1
-                                ? isDarkMode
-                                  ? '1px solid #415A77'
-                                  : '1px solid #eaeaea'
-                                : 'none',
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                              textAlign: 'left',
-                              pr: 1,
-                            }}
-                          >
-                            {idx + 1}. {item.name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                            }}
-                          >
-                            {item.totalPensioners}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                            }}
-                          >
-                            {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
-                          </Typography>
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="body2" sx={getResponsiveMessageStyle()}>
-                        No data found.
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            )}
-
-            {/* Top Categories tab */}
-            {tabValue === 3 && (
-              <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '3px 0',
-                    borderBottom: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                      textAlign: 'left',
-                      pr: 1,
-                    }}
-                  >
-                    {currentTabInfo.current.leftLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.middleLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      ...getResponsiveHeaderStyle(),
-                      flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                      textAlign: 'center',
-                    }}
-                  >
-                    {currentTabInfo.current.rightLabel}
-                  </Typography>
-                </Box>
-
-                {/* Loading indicator replaced by overlay */}
-                {itemsError.current && (
-                  <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {itemsError}
-                  </Typography>
-                )}
-                {!itemsLoading.current && !itemsError.current && (
-                  <>
-                    {topItems.length > 0 ? (
-                      topItems.map((item, idx) => (
-                        <Box
-                          key={item.name + idx}
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '3px 0',
-                            borderBottom:
-                              idx < topItems.length - 1
-                                ? isDarkMode
-                                  ? '1px solid #415A77'
-                                  : '1px solid #eaeaea'
-                                : 'none',
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 45%', sm: '0 0 50%' },
-                              textAlign: 'left',
-                              pr: 1,
-                            }}
-                          >
-                            {idx + 1}. {item.name}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                            }}
-                          >
-                            
-                            {item.totalPensioners}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              ...getResponsiveDataStyle(),
-                              flex: { xs: '1 1 27%', sm: '0 0 25%' },
-                              textAlign: 'center',
-                            }}
-                          >
-                            {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
-                          </Typography>
-                        </Box>
-                      ))
-                    ) : (
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif' }}>
                         No data found.
                       </Typography>
                     )}
