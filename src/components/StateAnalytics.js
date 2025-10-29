@@ -92,7 +92,7 @@ const StateAnalytics = () => {
     // Detailed Top States
     if (tabValue === 0 && !expandedItems) {
       try {
-        setLoading(true);
+        setPopupLoading(true);
         setError(null);
         const items = await fetchTopData(
           tabInfo["state"].api,
@@ -108,7 +108,7 @@ const StateAnalytics = () => {
       } catch (err) {
         setError(err.message);
       } finally {
-        setLoading(false);
+        setPopupLoading(false);
       }
     }
 
@@ -136,64 +136,37 @@ const StateAnalytics = () => {
     }
   };
 
-  const [loading, setLoading] = useState(true);
+  const [popupLoading, setPopupLoading] = useState(false);
   const [error, setError] = useState(null);
   const hasFetched = useRef(false);
   const [expandedItems, setexpandedItems] = useState(null);
 
   useEffect(() => {
     if (hasFetched.current) return;
-    hasFetched.current = true;
     fetchTopStates();
+    hasFetched.current = true;
   }, []);
-
-  const fetchTopStates = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const top_states_data = await fetchWithCache(
-        tabInfo["state"].api,
-        {},
-        5 * 60 * 1000 // 5 minutes cache
-      );
-
-      setTopItems(top_states_data.topStates);
-    } catch (err) {
-      console.error('Failed to fetch top states:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Refactoring starting here.
   const [topItems, setTopItems] = useState([]);
-  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [itemsError, setItemsError] = useState(null);
   const itemsFetched = useRef(false);
   const currentTabInfo = useRef(tabInfo["state"]);
 
 
-  // Reusable fetch+normalize for top performers
   const fetchTopData = async (
     endpoint,
     { nameKey, totalKey, completionKey },
     ttlMs = 5 * 60 * 1000,
     limit = 5
   ) => {
-    console.log("End point:", endpoint)
     const apiData = await fetchWithCache(endpoint, {}, ttlMs);
 
     // Accept array payloads OR object payloads where data sits in a known key
-    const topItemsList = apiData?.data ?? apiData?.topStates;
-    
-
-    const final_list = topItemsList.forEach((item) => {
-      return(item[currentTabInfo.current.nameKey], item[currentTabInfo.current.totalKey], item[currentTabInfo.current.completionKey]);
-    });
-    return final_list;
-
+    const topItemsList = apiData["data" in apiData? "data" : "topStates"];
+    console.log("Fetched top data...")
+    return topItemsList;
   };
 
   useEffect(() => {
@@ -222,6 +195,50 @@ const StateAnalytics = () => {
     }
   }, [tabValue]);
 
+  const fetchTopStates_old = async () => {
+    try {
+      setItemsLoading(true);
+      setError(null);
+
+      const top_states_data = await fetchWithCache(
+        tabInfo["state"].api,
+        {},
+        5 * 60 * 1000 // 5 minutes cache
+      );
+
+      setTopItems(top_states_data.topStates);
+    } catch (err) {
+      console.error('Failed to fetch top states:', err);
+      setError(err.message);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  const fetchTopStates = async () => {
+    try {
+      console.log("Fetching top states...")
+      setItemsLoading(true);
+      setItemsError(null);
+      const this_tabInfo = tabInfo["state"]
+      const items = await fetchTopData(
+        this_tabInfo.api,
+        {
+          nameKey: [this_tabInfo.nameKey],
+          totalKey: [this_tabInfo.totalKey],
+          completionKey: [this_tabInfo.completionKey]
+        }
+      );
+      setTopItems(items);
+      setItemsLoading(false);
+      console.log("Loading is false..", itemsLoading.current)
+    } catch (err) {
+      console.error('❌ Failed to fetch top banks:', err);
+      setItemsError(err.message);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
 
   const fetchTopBanks = async () => {
     try {
@@ -236,7 +253,7 @@ const StateAnalytics = () => {
           completionKey: [this.tabInfo.completionKey]
         }
       );
-      setTopItems(items.data);
+      setTopItems(items);
     } catch (err) {
       console.error('❌ Failed to fetch top banks:', err);
       setItemsError(err.message);
@@ -258,7 +275,7 @@ const StateAnalytics = () => {
           completionKey: [this_tabInfo.completionKey]
         }
       );
-      setTopItems(items.data);
+      setTopItems(items);
     } catch (err) {
       console.error('❌ Failed to fetch top PSAs:', err);
       setItemsError(err.message);
@@ -280,7 +297,7 @@ const StateAnalytics = () => {
             completionKey: [this_tabInfo.completionKey]
           }
         );
-        setTopItems(items.data);
+        setTopItems(items);
       } catch (err) {
         console.error('❌ Failed to fetch pensioner types:', err);
         setTopItems(err.message);
@@ -302,7 +319,7 @@ const StateAnalytics = () => {
             completionKey: [this_tabInfo.completionKey]
           }
         );
-        setTopItems(items.data);
+        setTopItems(items);
       } catch (err) {
         console.error('❌ Failed to fetch pensioner types:', err);
         setItemsError(err.message);
@@ -456,12 +473,7 @@ const StateAnalytics = () => {
           }}>
             {/* Spinner overlay for the active tab */}
             {(() => {
-              const isTabLoading = itemsLoading;
-                // tabValue === 0 ? loading :
-                //   tabValue === 1 ? itemsLoading :
-                //     tabValue === 2 ? itemsLoading :
-                //       tabValue === 3 ? itemsLoading :
-                //         tabValue === 4 ? itemsLoading : false;
+              const isTabLoading = itemsLoading.current;
               return <LoadingOverlay show={isTabLoading} />;
             })()}
             {/* Top States tab */}
@@ -514,11 +526,13 @@ const StateAnalytics = () => {
                 {/* Loading indicator replaced by overlay */}
                 {error && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {error}
+                    {"Error:" + error}
                   </Typography>
                 )}
-                {!loading && !error && (
+                
+                {!itemsLoading && !error && (
                   <>
+                    {console.log("top items", topItems.length)}
                     {console.log("top items", topItems)}
                     {console.log("Current tab info", currentTabInfo.current)}
                     {console.log(topItems[0][currentTabInfo.current.nameKey[0]])}
@@ -633,15 +647,15 @@ const StateAnalytics = () => {
                 </Box>
 
                 {/* Loading indicator replaced by overlay */}
-                {itemsError && (
+                {itemsError.current && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {itemsError}
+                    {itemsError.current}
                   </Typography>
                 )}
-                {!itemsLoading && !itemsError && (
+                {!itemsLoading.current && !itemsError.current && (
                   <>
-                    {topItems.length > 0 ? (
-                      topItems.map((item, idx) => (
+                    {topItems.current.length > 0 ? (
+                      topItems.current.map((item, idx) => (
                         <Box
                           key={item.name + idx}
                           sx={{
@@ -765,7 +779,7 @@ const StateAnalytics = () => {
                     {itemsError}
                   </Typography>
                 )}
-                {!itemsLoading && !itemsError && (
+                {!itemsLoading.current && !itemsError.current && (
                   <>
                     {topItems.length > 0 ? (
                       topItems.map((item, idx) => (
@@ -871,12 +885,12 @@ const StateAnalytics = () => {
                 </Box>
 
                 {/* Loading indicator replaced by overlay */}
-                {itemsError && (
+                {itemsError.current && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
                     {itemsError}
                   </Typography>
                 )}
-                {!itemsLoading && !itemsError && (
+                {!itemsLoading.current && !itemsError.current && (
                   <>
                     {topItems.length > 0 ? (
                       topItems.map((item, idx) => (
