@@ -9,22 +9,21 @@ import { useTheme } from '../contexts/ThemeContext';
 import { fetchWithCache } from '../utils/cache';
 
 // In the StateAnalytics component signature
-const StateAnalytics = ({
-  // Customizable column labels
-  tabInfo = {
-    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'] },
-    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['PSA'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'] },
-    'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['bank'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'] },
-    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['central_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'] },
-  },
-  middleLabel = 'Total Pensioners',
-  rightLabel = 'Completion Rate',
-}) => {
+const StateAnalytics = () => {
+  
+  const tabInfo = {
+    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['total_pensioners'], completionKey: ['verification_rate'], title:"States" },
+    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['PSA'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
+    'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['bank'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Banks" },
+    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['central_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
+  }
+  const middleLabel = 'Total Pensioners'
+  const rightLabel = 'Completion Rate'
+
   const [tabValue, setTabValue] = useState(0);
   const { isDarkMode, theme } = useTheme();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedState, setSelectedState] = useState('ALL');
-
 
   // Responsive styling utilities
   const getResponsiveHeaderStyle = () => ({
@@ -91,7 +90,7 @@ const StateAnalytics = ({
     setIsModalOpen(true);
 
     // Detailed Top States
-    if (tabValue === 0 && !expandedStates) {
+    if (tabValue === 0 && !expandedItems) {
       try {
         setLoading(true);
         setError(null);
@@ -105,7 +104,7 @@ const StateAnalytics = ({
           60 * 1000, // detailed cache TTL
           null       // no limit, full list
         );
-        setExpandedStates(items);
+        setexpandedItems(items);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -114,10 +113,10 @@ const StateAnalytics = ({
     }
 
     // Detailed Top Banks
-    if (tabValue === 1 && !expandedBanks) {
+    if (tabValue === 1 && !expandedItems) {
       try {
-        setBanksLoading(true);
-        setBanksError(null);
+        setItemsLoading(true);
+        setItemsError(null);
         const items = await fetchTopData(
           tabInfo["bank"].api,
           {
@@ -128,21 +127,19 @@ const StateAnalytics = ({
           60 * 1000,
           null
         );
-        setExpandedBanks(items);
+        setexpandedItems(items);
       } catch (err) {
-        setBanksError(err.message);
+        setItemsError(err.message);
       } finally {
-        setBanksLoading(false);
+        setItemsLoading(false);
       }
     }
   };
 
-  const [topStates, setTopStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const hasFetched = useRef(false);
-  const [expandedStates, setExpandedStates] = useState(null);
-  const [expandedBanks, setExpandedBanks] = useState(null);
+  const [expandedItems, setexpandedItems] = useState(null);
 
   useEffect(() => {
     if (hasFetched.current) return;
@@ -155,50 +152,13 @@ const StateAnalytics = ({
       setLoading(true);
       setError(null);
 
-      const apiData = await fetchWithCache(
+      const top_states_data = await fetchWithCache(
         tabInfo["state"].api,
         {},
         5 * 60 * 1000 // 5 minutes cache
       );
 
-      // Try common response shapes and normalize
-      // Inside fetchTopStates() normalization
-      const list = Array.isArray(apiData?.topStates)
-        ? apiData.topStates
-        : Array.isArray(apiData?.data)
-          ? apiData.data
-          : Array.isArray(apiData)
-            ? apiData
-            : [];
-
-      const getName = (item) =>
-        item.state || item.stateName || item.name || item.STATE || 'Unknown';
-
-      const getTotalPensioners = (item) =>
-        item.total_pensioners ?? item.pensioners ?? item.total ?? item.count ?? 0;
-
-      const getCompleted = (item) =>
-        item.completed ?? item.dlc ?? item.completedDLC ?? item.verified ?? 0;
-
-      const getCompletionRate = (item) => {
-        const rateRaw = item.completionRate ?? item.rate ?? item.percentage;
-        if (rateRaw != null) return Number(rateRaw);
-        const total = getTotalPensioners(item);
-        const completed = getCompleted(item);
-        return total > 0 ? (completed / total) * 100 : 0;
-      };
-
-      const normalized = list
-        .map((item) => ({
-          name: getName(item),
-          totalPensioners: getTotalPensioners(item),
-          completionRate: getCompletionRate(item),
-        }))
-        // Sort by completion rate descending (adjust if you prefer a different sort)
-        .sort((a, b) => b.completionRate - a.completionRate)
-        .slice(0, 5);
-
-      setTopStates(normalized);
+      setTopItems(top_states_data.topStates);
     } catch (err) {
       console.error('Failed to fetch top states:', err);
       setError(err.message);
@@ -212,45 +172,8 @@ const StateAnalytics = ({
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState(null);
   const itemsFetched = useRef(false);
+  const currentTabInfo = useRef(tabInfo["state"]);
 
-  const [topBanks, setTopBanks] = useState([]);
-  const [banksLoading, setBanksLoading] = useState(false);
-  const [banksError, setBanksError] = useState(null);
-  const banksFetched = useRef(false);
-
-  const [topPSAs, setTopPSAs] = useState([]);
-  const [psaLoading, setPSALoading] = useState(false);
-  const [psaError, setPSAError] = useState(null);
-  const psaFetched = useRef(false);
-
-  const [topCategories, setTopCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [categoriesError, setCategoriesError] = useState(null);
-  const categoriesFetched = useRef(false);
-
-  const [topPensionerTypes, setTopPensionerTypes] = useState([]);
-  const [ptypesLoading, setPTypesLoading] = useState(false);
-  const [ptypesError, setPTypesError] = useState(null);
-  const ptypesFetched = useRef(false);
-
-  // Dedupe helper (shared for states/banks/PSAs)
-  const canon = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const dedupeByNameKeepBest = (arr) => {
-    const best = new Map();
-    arr.forEach((item) => {
-      const key = canon(item.name);
-      const current = best.get(key);
-      if (!current) {
-        best.set(key, item);
-        return;
-      }
-      const cmp =
-        (item.completionRate || 0) - (current.completionRate || 0) ||
-        (item.totalPensioners || 0) - (current.totalPensioners || 0);
-      if (cmp > 0) best.set(key, item);
-    });
-    return Array.from(best.values());
-  };
 
   // Reusable fetch+normalize for top performers
   const fetchTopData = async (
@@ -259,178 +182,132 @@ const StateAnalytics = ({
     ttlMs = 5 * 60 * 1000,
     limit = 5
   ) => {
+    console.log("End point:", endpoint)
     const apiData = await fetchWithCache(endpoint, {}, ttlMs);
 
     // Accept array payloads OR object payloads where data sits in a known key
-    const payload = apiData?.data ?? topStates;
-    let list = [];
+    const topItemsList = apiData?.data ?? apiData?.topStates;
+    
 
-    if (Array.isArray(payload)) {
-      list = payload;
-    } else if (payload && typeof payload === 'object') {
-      // Support object-wrapped arrays without repeating code
-      if (Array.isArray(payload.states)) list = payload.states;
-      else if (Array.isArray(payload.banks)) list = payload.banks;
-      else list = [];
-    } else {
-      list = [];
-    }
-
-    const resolveValue = (obj, keyOrKeys) => {
-      if (Array.isArray(keyOrKeys)) {
-        for (const k of keyOrKeys) {
-          if (obj[k] != null) return obj[k];
-        }
-        return undefined;
-      }
-      return obj[keyOrKeys];
-    };
-
-    const normalized = list.map((item) => {
-      const rawName = resolveValue(item, nameKey);
-      const name =
-        rawName == null || String(rawName).trim() === '' ? 'Unknown' : String(rawName);
-
-      const totalRaw = resolveValue(item, totalKey);
-      const totalPensioners = Number(totalRaw ?? 0);
-
-      const rawRatio = resolveValue(item, completionKey);
-      const completedFallback =
-        item.verified_pensioner_count ??
-        item.verified ??
-        item.completedDLC ??
-        item.completed ??
-        null;
-
-      let completionRate;
-      if (rawRatio != null && !Number.isNaN(Number(rawRatio))) {
-        completionRate = Number(rawRatio) <= 1 ? Number(rawRatio) * 100 : Number(rawRatio);
-      } else if (completedFallback != null && totalPensioners > 0) {
-        completionRate = (Number(completedFallback) / totalPensioners) * 100;
-      } else {
-        completionRate = 0;
-      }
-
-      return { name, totalPensioners, completionRate };
+    const final_list = topItemsList.forEach((item) => {
+      return(item[currentTabInfo.current.nameKey], item[currentTabInfo.current.totalKey], item[currentTabInfo.current.completionKey]);
     });
+    return final_list;
 
-    // Filter unknown or zero totals
-    const filtered = normalized.filter(
-      (item) => item.name !== 'Unknown' && item.totalPensioners > 0
-    );
-
-    const unique = dedupeByNameKeepBest(filtered.length > 0 ? filtered : normalized);
-    const sorted = unique.sort((a, b) => b.completionRate - a.completionRate);
-    return typeof limit === 'number' ? sorted.slice(0, limit) : sorted;
   };
 
   useEffect(() => {
     // Fetch banks the first time the tab is opened
-    if (tabValue === 1 && !banksFetched.current) {
-      banksFetched.current = true;
+    if (tabValue === 1 && !itemsFetched.current) {
+      currentTabInfo = tabInfo["bank"];
+      itemsFetched.current = true;
       fetchTopBanks();
     }
     // Fetch PSAs on first open of the tab
-    if (tabValue === 2 && !psaFetched.current) {
-      psaFetched.current = true;
+    if (tabValue === 2 && !itemsFetched.current) {
+      itemsFetched.current = true;
+      currentTabInfo = tabInfo["PSA"];
       fetchTopPSAs();
     }
     // Fetch Categories on first open of the tab
-    if (tabValue === 3 && !categoriesFetched.current) {
-      categoriesFetched.current = true;
+    if (tabValue === 3 && !itemsFetched.current) {
+      itemsFetched.current = true;
+      currentTabInfo = tabInfo["central_subtype"];
       fetchTopCentralPensionSubtypes();
     }
     // Fetch Pensioner Types on first open of the tab
-    if (tabValue === 4 && !ptypesFetched.current) {
-      ptypesFetched.current = true;
+    if (tabValue === 4 && !itemsFetched.current) {
+      itemsFetched.current = true;
       fetchTopPensionerTypes();
     }
   }, [tabValue]);
 
-  // Inside fetchTopBanks()
-  // Refactor Top Banks to reuse fetchTopData
+
   const fetchTopBanks = async () => {
     try {
-      setBanksLoading(true);
-      setBanksError(null);
+      setItemsLoading(true);
+      setItemsError(null);
+      const this_tabInfo = tabInfo["bank"]
       const items = await fetchTopData(
-        tabInfo["bank"].api,
+        this_tabInfo.api,
         {
-          nameKey: ['Bank_name', 'bank_name', 'bank', 'Bank'],
-          totalKey: ['all_pensioner_count', 'total_pensioners', 'count', 'total'],
-          completionKey: ['completion_ratio', 'completion_rate', 'rate']
+          nameKey: [this_tabInfo.nameKey],
+          totalKey: [this_tabInfo.totalKey],
+          completionKey: [this.tabInfo.completionKey]
         }
       );
-      setTopBanks(items);
+      setTopItems(items.data);
     } catch (err) {
       console.error('❌ Failed to fetch top banks:', err);
-      setBanksError(err.message);
+      setItemsError(err.message);
     } finally {
-      setBanksLoading(false);
+      setItemsLoading(false);
     }
   };
 
   const fetchTopPSAs = async () => {
     try {
-      setPSALoading(true);
-      setPSAError(null);
+      setItemsLoading(true);
+      setItemsError(null);
+      const this_tabInfo = tabInfo["PSA"]
       const items = await fetchTopData(
-        tabInfo["PSA"].api,
+        this_tabInfo.api,
         {
-          nameKey: ['psa'],
-          totalKey: ['total_pensioners'],
-          completionKey: ['completion_ratio']
+          nameKey: [this_tabInfo.nameKey],
+          totalKey: [this_tabInfo.totalKey],
+          completionKey: [this_tabInfo.completionKey]
         }
       );
-      setTopPSAs(items);
+      setTopItems(items.data);
     } catch (err) {
       console.error('❌ Failed to fetch top PSAs:', err);
-      setPSAError(err.message);
+      setItemsError(err.message);
     } finally {
-      setPSALoading(false);
+      setItemsLoading(false);
     }
   };
 
   const fetchTopCentralPensionSubtypes = async () => {
-    const currentTabInfo = tabInfo["central_subtype"]
     try {
-      setCategoriesLoading(true);
-      setCategoriesError(null);
+      setItemsLoading(true);
+      setItemsError(null);
+      const this_tabInfo = tabInfo["central_subtype"]
       const items = await fetchTopData(
-        currentTabInfo.api,
+        this_tabInfo.api,
           {
-            nameKey: currentTabInfo.nameKey,
-            totalKey: currentTabInfo.totalKey,
-            completionKey: currentTabInfo.completionKey
+            nameKey: [this_tabInfo.nameKey],
+            totalKey: [this_tabInfo.totalKey],
+            completionKey: [this_tabInfo.completionKey]
           }
         );
-        setTopCategories(items);
+        setTopItems(items.data);
       } catch (err) {
         console.error('❌ Failed to fetch pensioner types:', err);
-        setTopCategories(err.message);
+        setTopItems(err.message);
       } finally {
-        setCategoriesLoading(false);
+        setItemsLoading(false);
       }
     };
 
     const fetchTopPensionerTypes = async () => {
       try {
-        setPTypesLoading(true);
-        setPTypesError(null);
+        setItemsLoading(true);
+        setItemsError(null);
+        const this_tabInfo = tabInfo["PSA"]
         const items = await fetchTopData(
-          tabInfo["PSA"].api,
+          this_tabInfo.api,
           {
-            nameKey: ['Pensioner_subtype'],
-            totalKey: ['all_pensioner_count'],
-            completionKey: ['completion_ratio']
+            nameKey: [this_tabInfo.nameKey],
+            totalKey: [this_tabInfo.totalKey],
+            completionKey: [this_tabInfo.completionKey]
           }
         );
-        setTopPensionerTypes(items);
+        setTopItems(items.data);
       } catch (err) {
         console.error('❌ Failed to fetch pensioner types:', err);
-        setPTypesError(err.message);
+        setItemsError(err.message);
       } finally {
-        setPTypesLoading(false);
+        setItemsLoading(false);
       }
     };
 
@@ -455,7 +332,7 @@ const StateAnalytics = ({
             marginBottom: '5px'
           }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '11px', sm: '12px', md: '13px' }, fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              STATE ANALYTICS
+              {currentTabInfo.current.title}
             </Typography>
             <Typography
               variant="body2"
@@ -494,7 +371,7 @@ const StateAnalytics = ({
                   <Tab
                     icon={<LocationCityIcon fontSize="small" />}
                     iconPosition="start"
-                    label="Top States"
+                    label={"Top" + currentTabInfo.current.title}
                     disableRipple
                     sx={{
                       textTransform: 'none',
@@ -579,12 +456,12 @@ const StateAnalytics = ({
           }}>
             {/* Spinner overlay for the active tab */}
             {(() => {
-              const isTabLoading =
-                tabValue === 0 ? loading :
-                  tabValue === 1 ? banksLoading :
-                    tabValue === 2 ? psaLoading :
-                      tabValue === 3 ? categoriesLoading :
-                        tabValue === 4 ? ptypesLoading : false;
+              const isTabLoading = itemsLoading;
+                // tabValue === 0 ? loading :
+                //   tabValue === 1 ? itemsLoading :
+                //     tabValue === 2 ? itemsLoading :
+                //       tabValue === 3 ? itemsLoading :
+                //         tabValue === 4 ? itemsLoading : false;
               return <LoadingOverlay show={isTabLoading} />;
             })()}
             {/* Top States tab */}
@@ -608,7 +485,7 @@ const StateAnalytics = ({
                       textAlign: 'left'
                     }}
                   >
-                    {tabInfo["state"].leftLabel}
+                    {currentTabInfo.current.leftLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -642,11 +519,15 @@ const StateAnalytics = ({
                 )}
                 {!loading && !error && (
                   <>
-                    {topStates
-                      .filter((item) => selectedState === 'ALL' || item.name === selectedState).length > 0 ? (
-                      topStates
-                        .filter((item) => selectedState === 'ALL' || item.name === selectedState)
-                        .map((item, idx) => (
+                    {console.log("top items", topItems)}
+                    {console.log("Current tab info", currentTabInfo.current)}
+                    {console.log(topItems[0][currentTabInfo.current.nameKey[0]])}
+                    {console.log(topItems[0][currentTabInfo.current.totalKey[0]])}
+                    {console.log(topItems[0][currentTabInfo.current.completionKey[0]])}
+ 
+                    
+                    {topItems.length > 0 ? (topItems.map((item, idx) => (
+                      
                           <Box
                             key={item.name + idx}
                             sx={{
@@ -654,7 +535,7 @@ const StateAnalytics = ({
                               justifyContent: 'space-between',
                               padding: '4px 0',
                               borderBottom:
-                                idx < topStates.length - 1
+                                idx < topItems.length - 1
                                   ? isDarkMode
                                     ? '1px solid #415A77'
                                     : '1px solid #eaeaea'
@@ -670,7 +551,7 @@ const StateAnalytics = ({
                                 textAlign: 'left',
                               }}
                             >
-                              {idx + 1}. {item.name}
+                              {idx + 1}. {item[currentTabInfo.current.nameKey]}
                             </Typography>
                             <Typography
                               variant="body2"
@@ -681,7 +562,7 @@ const StateAnalytics = ({
                                 textAlign: 'center',
                               }}
                             >
-                              {item.totalPensioners}
+                              {item[currentTabInfo.current.totalKey[0]]}
                             </Typography>
                             <Typography
                               variant="body2"
@@ -692,7 +573,7 @@ const StateAnalytics = ({
                                 textAlign: 'center',
                               }}
                             >
-                              {item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}
+                              {item[currentTabInfo.current.completionKey[0]] >= 0 ? `${item[currentTabInfo.current.completionKey[0]].toFixed(1)}%` : '-'}
                             </Typography>
                           </Box>
                         ))
@@ -727,7 +608,7 @@ const StateAnalytics = ({
                       pr: 1,
                     }}
                   >
-                    {tabInfo["bank"].leftLabel}
+                    {currentTabInfo.current.leftLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -737,7 +618,7 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {middleLabel}
+                    {currentTabInfo.current.middleLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -747,20 +628,20 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {rightLabel}
+                    {currentTabInfo.current.rightLabel}
                   </Typography>
                 </Box>
 
                 {/* Loading indicator replaced by overlay */}
-                {banksError && (
+                {itemsError && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {banksError}
+                    {itemsError}
                   </Typography>
                 )}
-                {!banksLoading && !banksError && (
+                {!itemsLoading && !itemsError && (
                   <>
-                    {topBanks.length > 0 ? (
-                      topBanks.map((item, idx) => (
+                    {topItems.length > 0 ? (
+                      topItems.map((item, idx) => (
                         <Box
                           key={item.name + idx}
                           sx={{
@@ -768,7 +649,7 @@ const StateAnalytics = ({
                             justifyContent: 'space-between',
                             padding: '3px 0',
                             borderBottom:
-                              idx < topBanks.length - 1
+                              idx < topItems.length - 1
                                 ? isDarkMode
                                   ? '1px solid #415A77'
                                   : '1px solid #eaeaea'
@@ -854,7 +735,7 @@ const StateAnalytics = ({
                       pr: 1,
                     }}
                   >
-                    {tabInfo["PSA"].leftLabel}
+                    {currentTabInfo.current.leftLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -864,7 +745,7 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {middleLabel}
+                    {currentTabInfo.current.middleLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -874,20 +755,20 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {rightLabel}
+                    {currentTabInfo.current.rightLabel}
                   </Typography>
                 </Box>
 
                 {/* Loading indicator replaced by overlay */}
-                {psaError && (
+                {itemsError && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {psaError}
+                    {itemsError}
                   </Typography>
                 )}
-                {!psaLoading && !psaError && (
+                {!itemsLoading && !itemsError && (
                   <>
-                    {topPSAs.length > 0 ? (
-                      topPSAs.map((item, idx) => (
+                    {topItems.length > 0 ? (
+                      topItems.map((item, idx) => (
                         <Box
                           key={item.name + idx}
                           sx={{
@@ -895,7 +776,7 @@ const StateAnalytics = ({
                             justifyContent: 'space-between',
                             padding: '3px 0',
                             borderBottom:
-                              idx < topPSAs.length - 1
+                              idx < topItems.length - 1
                                 ? isDarkMode
                                   ? '1px solid #415A77'
                                   : '1px solid #eaeaea'
@@ -965,7 +846,7 @@ const StateAnalytics = ({
                       pr: 1,
                     }}
                   >
-                    {tabInfo["central_subtype"].leftLabel}
+                    {currentTabInfo.current.leftLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -975,7 +856,7 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {middleLabel}
+                    {currentTabInfo.current.middleLabel}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -985,20 +866,20 @@ const StateAnalytics = ({
                       textAlign: 'center',
                     }}
                   >
-                    {rightLabel}
+                    {currentTabInfo.current.rightLabel}
                   </Typography>
                 </Box>
 
                 {/* Loading indicator replaced by overlay */}
-                {categoriesError && (
+                {itemsError && (
                   <Typography variant="body2" sx={getResponsiveErrorStyle()}>
-                    {categoriesError}
+                    {itemsError}
                   </Typography>
                 )}
-                {!categoriesLoading && !categoriesError && (
+                {!itemsLoading && !itemsError && (
                   <>
-                    {topCategories.length > 0 ? (
-                      topCategories.map((item, idx) => (
+                    {topItems.length > 0 ? (
+                      topItems.map((item, idx) => (
                         <Box
                           key={item.name + idx}
                           sx={{
@@ -1006,7 +887,7 @@ const StateAnalytics = ({
                             justifyContent: 'space-between',
                             padding: '3px 0',
                             borderBottom:
-                              idx < topCategories.length - 1
+                              idx < topItems.length - 1
                                 ? isDarkMode
                                   ? '1px solid #415A77'
                                   : '1px solid #eaeaea'
@@ -1032,6 +913,7 @@ const StateAnalytics = ({
                               textAlign: 'center',
                             }}
                           >
+                            
                             {item.totalPensioners}
                           </Typography>
                           <Typography
@@ -1060,7 +942,7 @@ const StateAnalytics = ({
 
         </Paper>
 
-        <Dialog
+        {/* <Dialog
           open={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           fullWidth
@@ -1088,10 +970,11 @@ const StateAnalytics = ({
               component="div"
               sx={{ fontWeight: 'bold', fontSize: '13px', color: theme.palette.text.primary }}
             >
-              State Analytics
+              currentTabInfo.title
             </Typography>
-
+/*
             {/* Filter dropdown before X */}
+{/*             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FormControl size="small" sx={{ minWidth: 150 }}>
                 <Select
@@ -1102,7 +985,7 @@ const StateAnalytics = ({
                   sx={{ fontSize: '12px' }}
                 >
                   <MenuItem value="ALL" sx={{ fontSize: '12px' }}>All States</MenuItem>
-                  {Array.from(new Set((expandedStates ?? topStates).map((s) => s.name))).map((name) => (
+                  {Array.from(new Set((expandedItems ?? topItems).map((s) => s.name))).map((name) => (
                     <MenuItem key={name} value={name} sx={{ fontSize: '12px' }}>{name}</MenuItem>
                   ))}
                 </Select>
@@ -1118,10 +1001,10 @@ const StateAnalytics = ({
               {(() => {
                 const isTabLoading =
                   tabValue === 0 ? loading :
-                    tabValue === 1 ? banksLoading :
-                      tabValue === 2 ? psaLoading :
-                        tabValue === 3 ? categoriesLoading :
-                          tabValue === 4 ? ptypesLoading : false;
+                    tabValue === 1 ? itemsLoading :
+                      tabValue === 2 ? itemsLoading :
+                        tabValue === 3 ? itemsLoading :
+                          tabValue === 4 ? itemsLoading : false;
                 return <LoadingOverlay show={isTabLoading} />;
               })()}
 
@@ -1137,12 +1020,12 @@ const StateAnalytics = ({
                   {error && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{error}</Typography>)}
                   {!loading && !error && (
                     <>
-                      {(expandedStates ?? topStates)
+                      {(expandedItems ?? topItems)
                         .filter((item) => selectedState === 'ALL' || item.name === selectedState).length > 0 ? (
-                        (expandedStates ?? topStates)
+                        (expandedItems ?? topItems)
                           .filter((item) => selectedState === 'ALL' || item.name === selectedState)
                           .map((item, idx) => (
-                            <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedStates ?? topStates).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                            <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedItems ?? topItems).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                               <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                               <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
                               <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
@@ -1163,12 +1046,12 @@ const StateAnalytics = ({
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
                   </Box>
-                  {banksError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{banksError}</Typography>)}
-                  {!banksLoading && !banksError && (
+                  {itemsError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{itemsError}</Typography>)}
+                  {!itemsError && !itemsError && (
                     <>
-                      {(expandedBanks ?? topBanks).length > 0 ? (
-                        (expandedBanks ?? topBanks).map((item, idx) => (
-                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedBanks ?? topBanks).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                      {(expandedItems ?? topItems).length > 0 ? (
+                        (expandedItems ?? topItems).map((item, idx) => (
+                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < (expandedItems ?? topItems).length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
@@ -1189,12 +1072,12 @@ const StateAnalytics = ({
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
                   </Box>
-                  {psaError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{psaError}</Typography>)}
-                  {!psaLoading && !psaError && (
+                  {itemsError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{itemsError}</Typography>)}
+                  {!itemsLoading && !itemsError && (
                     <>
-                      {topPSAs.length > 0 ? (
-                        topPSAs.map((item, idx) => (
-                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topPSAs.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                      {topItems.length > 0 ? (
+                        topItems.map((item, idx) => (
+                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topItems.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
@@ -1215,12 +1098,12 @@ const StateAnalytics = ({
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
                   </Box>
-                  {categoriesError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{categoriesError}</Typography>)}
-                  {!categoriesLoading && !categoriesError && (
+                  {itemsError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{itemsError}</Typography>)}
+                  {!itemsLoading && !itemsError && (
                     <>
-                      {topCategories.length > 0 ? (
-                        topCategories.map((item, idx) => (
-                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topCategories.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                      {topItems.length > 0 ? (
+                        topItems.map((item, idx) => (
+                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topItems.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
@@ -1241,12 +1124,12 @@ const StateAnalytics = ({
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{middleLabel}</Typography>
                     <Typography variant="body2" sx={{ ...getResponsiveHeaderStyle(), flex: '0 0 25%', textAlign: 'center' }}>{rightLabel}</Typography>
                   </Box>
-                  {ptypesError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{ptypesError}</Typography>)}
-                  {!ptypesLoading && !ptypesError && (
+                  {itemsError && (<Typography variant="body2" sx={getResponsiveErrorStyle()}>{itemsError}</Typography>)}
+                  {!itemsLoading && !itemsError && (
                     <>
-                      {topPensionerTypes.length > 0 ? (
-                        topPensionerTypes.map((item, idx) => (
-                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topPensionerTypes.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
+                      {topItems.length > 0 ? (
+                        topItems.map((item, idx) => (
+                          <Box key={item.name + idx} sx={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: idx < topItems.length - 1 ? (isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea') : 'none' }}>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 50%', textAlign: 'left' }}>{idx + 1}. {item.name}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.totalPensioners}</Typography>
                             <Typography variant="body2" sx={{ ...getResponsiveDataStyle(), flex: '0 0 25%', textAlign: 'center' }}>{item.completionRate >= 0 ? `${item.completionRate.toFixed(1)}%` : '-'}</Typography>
@@ -1261,7 +1144,7 @@ const StateAnalytics = ({
               )}
             </Box>
           </DialogContent>
-        </Dialog>
+        </Dialog> */} */
       </>
     );
   };
