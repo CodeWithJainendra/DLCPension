@@ -25,6 +25,20 @@ const StateAnalytics = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedState, setSelectedState] = useState('ALL');
 
+   // Refactoring starting here.
+  const [topItems, setTopItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
+  const [itemsError, setItemsError] = useState(null);
+  const itemsFetched = useRef(false);
+  const currentTabInfo = useRef(tabInfo["state"]);
+
+  
+  const [popupLoading, setPopupLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const hasFetched = useRef(false);
+  const [expandedItems, setexpandedItems] = useState(null);
+
+
   // Responsive styling utilities
   const getResponsiveHeaderStyle = () => ({
     fontWeight: 600,
@@ -83,6 +97,8 @@ const StateAnalytics = () => {
     ) : null;
 
   const handleTabChange = (event, newValue) => {
+    console.log("Tab changed to", newValue);
+    itemsFetched.current = false;
     setTabValue(newValue);
   };
 
@@ -136,25 +152,13 @@ const StateAnalytics = () => {
     }
   };
 
-  const [popupLoading, setPopupLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const hasFetched = useRef(false);
-  const [expandedItems, setexpandedItems] = useState(null);
-
   useEffect(() => {
-    if (hasFetched.current) return;
+    if (itemsFetched.current) return;
     fetchTopStates();
-    hasFetched.current = true;
+    itemsFetched.current = true;
   }, []);
 
-  // Refactoring starting here.
-  const [topItems, setTopItems] = useState([]);
-  const [itemsLoading, setItemsLoading] = useState(true);
-  const [itemsError, setItemsError] = useState(null);
-  const itemsFetched = useRef(false);
-  const currentTabInfo = useRef(tabInfo["state"]);
-
-
+ 
   const fetchTopData = async (
     endpoint,
     { nameKey, totalKey, completionKey },
@@ -171,6 +175,7 @@ const StateAnalytics = () => {
 
   useEffect(() => {
     // Fetch banks the first time the tab is opened
+  
     if (tabValue === 1 && !itemsFetched.current) {
       currentTabInfo = tabInfo["bank"];
       itemsFetched.current = true;
