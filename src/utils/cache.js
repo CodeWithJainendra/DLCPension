@@ -219,12 +219,12 @@ export default cacheManager;
 /**
  * Helper function to fetch with cache
  * @param {string} url - API URL
- * @param {object} options - Fetch options
+ * @param {object} params - Fetch options
  * @param {number} cacheTTL - Cache TTL in milliseconds (default: 5 minutes)
  * @returns {Promise} - API response
  */
-export const fetchWithCache = async (url, options = {}, cacheTTL = 5 * 60 * 1000) => {
-  const cacheKey = cacheManager.generateKey(url, options);
+export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000) => {
+  const cacheKey = cacheManager.generateKey(url, params);
 
   // If there's an in-flight request, reuse its promise immediately
   const pending = cacheManager.getPending(cacheKey);
@@ -243,14 +243,16 @@ export const fetchWithCache = async (url, options = {}, cacheTTL = 5 * 60 * 1000
 
   // Add CORS mode and credentials
   const fetchOptions = {
-    ...options,
+    ...params,
     mode: 'cors',
     credentials: 'omit',
   };
 
   const requestPromise = (async () => {
     try {
-      const response = await fetch(url, fetchOptions);
+    
+      const prepared_url = url + (Object.keys(params).length ? '?' + new URLSearchParams(fetchOptions).toString() : '');
+      const response = await fetch(prepared_url, fetchOptions);
 
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);

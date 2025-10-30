@@ -13,7 +13,7 @@ const StateAnalytics = () => {
   
   const tabIndexToInfoMap={0:"state",1:"bank",2:"PSA",3:"central_subtype"}
   const tabInfo = {
-    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['total_pensioners'], completionKey: ['verification_rate'], title:"States" },
+    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"States" },
     'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['psa'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
     'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['Bank_name'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Banks" },
     'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['Pensioner_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
@@ -162,13 +162,9 @@ const StateAnalytics = () => {
   }, []);
 
  
-  const _makeAPICallOrFetchFromCache = async (
-    endpoint,
-    { nameKey, totalKey, completionKey },
-    ttlMs = 5 * 60 * 1000,
-    limit = 5
-  ) => {
-    const apiData = await fetchWithCache(endpoint, {}, ttlMs);
+  const _makeAPICallOrFetchFromCache = async (endpoint, params={}, ttlMs = 5 * 60 * 1000) =>{
+
+      const apiData = await fetchWithCache(endpoint, params, ttlMs);
 
     // Accept array payloads OR object payloads where data sits in a known key
     const topItemsList = apiData["data" in apiData? "data" : "topStates"];
@@ -191,14 +187,7 @@ const StateAnalytics = () => {
       setItemsLoading(true);
       setItemsError(null);
       const this_tabInfo = tabInfo[list_name]
-      const items = await _makeAPICallOrFetchFromCache(
-        this_tabInfo.api,
-        {
-          nameKey: [this_tabInfo.nameKey],
-          totalKey: [this_tabInfo.totalKey],
-          completionKey: [this_tabInfo.completionKey]
-        }
-      );
+      const items = await _makeAPICallOrFetchFromCache(this_tabInfo.api, {limit:5});
       setTopItems(items);
       setItemsLoading(false);
       console.log("Loading is false..", itemsLoading.current)
@@ -210,7 +199,6 @@ const StateAnalytics = () => {
     }
   };
 
-  
     return (
       <>
         <Paper elevation={0} sx={{
@@ -270,7 +258,7 @@ const StateAnalytics = () => {
                   <Tab
                     icon={<LocationCityIcon fontSize="small" />}
                     iconPosition="start"
-                    label={"Top" + currentTabInfo.current.title}
+                    label="Top States"
                     disableRipple
                     sx={{
                       textTransform: 'none',
@@ -305,7 +293,7 @@ const StateAnalytics = () => {
                       '&:not(:last-of-type)': { borderRight: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea' }
                     }}
                   />
-                  {/* Top PSA  */}
+
                   <Tab
                     icon={<CategoryIcon fontSize="small" />}
                     iconPosition="start"
