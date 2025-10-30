@@ -13,10 +13,10 @@ const StateAnalytics = () => {
   
   const tabIndexToInfoMap={0:"state",1:"bank",2:"PSA",3:"central_subtype"}
   const tabInfo = {
-    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"States" },
-    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psa", leftLabel: "PSA", nameKey: ['psa'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
+    'state': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"States" },
+    'PSA': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-psas", leftLabel: "PSA", nameKey: ['psa'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"PSAs"},
     'bank': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['Bank_name'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Banks" },
-    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/psa-pensioner-types", leftLabel: "Central types", nameKey: ['Pensioner_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
+    'central_subtype': { api: "https://samar.iitk.ac.in/dlc-pension-data-api/api/top-central-pensioner-subtypes", leftLabel: "Central types", nameKey: ['Pensioner_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title:"Central" },
   }
   const middleLabel = 'Total Pensioners'
   const rightLabel = 'Completion Rate'
@@ -98,7 +98,6 @@ const StateAnalytics = () => {
     ) : null;
 
   const handleTabChange = (event, newValue) => {
-    console.log("Tab changed to", newValue);
     setItemsLoading(true);
     itemsFetched.current = false;
     currentTabInfo.current = tabInfo[tabIndexToInfoMap[newValue]];
@@ -168,7 +167,6 @@ const StateAnalytics = () => {
 
     // Accept array payloads OR object payloads where data sits in a known key
     const topItemsList = apiData["data" in apiData? "data" : "topStates"];
-    console.log(topItemsList)
     return topItemsList;
   };
 
@@ -183,14 +181,12 @@ const StateAnalytics = () => {
   
   const fetchTopItemsForList = async (list_name) => {
     try {
-      console.log("Fetching top :", list_name)
       setItemsLoading(true);
       setItemsError(null);
       const this_tabInfo = tabInfo[list_name]
       const items = await _makeAPICallOrFetchFromCache(this_tabInfo.api, {limit:5});
       setTopItems(items);
       setItemsLoading(false);
-      console.log("Loading is false..", itemsLoading.current)
     } catch (err) {
       console.error('❌ Failed to fetch top items:', list_name,err);
       setItemsError(err.message);
@@ -212,6 +208,7 @@ const StateAnalytics = () => {
           overflow: 'visible',
           backgroundColor: theme.palette.background.paper
         }}>
+          {/* This section renders the Card's header that reads "Analytics", along with the show more button. */}
           <Box sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -235,6 +232,7 @@ const StateAnalytics = () => {
             </Typography>
           </Box>
 
+          {/* This section renders the four tab nav and handles the switching  */}
           <Box sx={{ borderBottom: 1, borderColor: isDarkMode ? '#415A77' : 'divider' }}>
             <Box sx={{ mb: '4px' }}>
               <Box sx={{
@@ -333,6 +331,7 @@ const StateAnalytics = () => {
             </Box>
           </Box>
 
+          {/* This section renders the Card's main content- the top 5 list with loading and error handling. */}
           <Box sx={{
             padding: { xs: '2px 0', sm: '3px 0', md: '4px 0' },
             flex: 'none',
@@ -419,6 +418,7 @@ const StateAnalytics = () => {
                             }}
                           >
                             <Typography
+                              key={item.name + idx + "left"}
                               variant="body2"
                               sx={{
                                 ...getResponsiveDataStyle(),
@@ -431,6 +431,7 @@ const StateAnalytics = () => {
                             </Typography>
                             <Typography
                               variant="body2"
+                              key={item.name + idx + "all-pensioners"}
                               sx={{
                                 ...getResponsiveDataStyle(),
                                 fontSize: { xs: '10px' },
@@ -442,6 +443,7 @@ const StateAnalytics = () => {
                             </Typography>
                             <Typography
                               variant="body2"
+                              key={item.name + idx + "completion-ratio"}
                               sx={{
                                 ...getResponsiveDataStyle(),
                                 fontSize: { xs: '10px' },
