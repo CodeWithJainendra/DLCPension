@@ -177,7 +177,7 @@ const StateAnalytics = () => {
           borderRadius: '8px',
           border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
           marginBottom: '100px',
-          height: '250px',
+          height: '220px',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'visible',
@@ -191,7 +191,7 @@ const StateAnalytics = () => {
             marginBottom: '5px'
           }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: { xs: '11px', sm: '12px', md: '13px' }, fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {"Analytics"}
+              {"TOP PERFORMERS"}
             </Typography>
             <Typography
               variant="body2"

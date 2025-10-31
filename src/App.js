@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Container } from '@mui/material';
 import { ThemeContextProvider, useTheme } from './contexts/ThemeContext';
 import { ViewModeProvider, useViewMode } from './contexts/ViewModeContext';
@@ -9,6 +9,7 @@ import StatCards from './components/StatCards';
 import MapAnalysis from './components/MapAnalysis';
 import AgeBreakdown from './components/AgeBreakdown';
 import StateAnalytics from './components/StateAnalytics';
+import FilterComponent from './components/FilterComponent';
 import VerificationMethods from './components/VerificationMethods';
 import AIChatCard from './components/AIChatCard';
 import Login from './components/Login';
@@ -23,7 +24,7 @@ function RightColumn() {
   const showPincodes = viewMode === 'pincodes';
   // Sorting state for districts panel
   const [districtSort, setDistrictSort] = React.useState('count');
-
+  
   const common = {
     position: 'absolute',
     top: 0,
@@ -50,10 +51,10 @@ function RightColumn() {
         }}
       >
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ flex: '0 0 20%', minHeight: 0, mb: '20px' }}>
+          <Box sx={{ flex: '0 0 20%', minHeight: 160, mb: '20px' }}>
             <AgeBreakdown />
           </Box>
-          <Box sx={{ flex: '1 1 50%', minHeight: 0,mb: 0 }}>
+          <Box sx={{ flex: '1 1 50%', minHeight: 0, mb: 0 }}>
             <StateAnalytics />
           </Box>
           <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
@@ -136,18 +137,18 @@ function RightColumn() {
               {districtNames.map((name, idx) => (
                 <Box
                   key={`${name}-${idx}`}
-                  sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr', 
-                    columnGap: '8px', 
-                    padding: '10px 14px', 
-                    borderBottom: '1px solid', 
-                    borderBottomColor: theme.palette.divider, 
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr',
+                    columnGap: '8px',
+                    padding: '10px 14px',
+                    borderBottom: '1px solid',
+                    borderBottomColor: theme.palette.divider,
                     cursor: 'pointer',
                     transition: 'background-color 0.2s ease',
                     '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.08)' 
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? 'rgba(255, 255, 255, 0.08)'
                         : 'rgba(0, 0, 0, 0.04)',
                     }
                   }}
@@ -212,19 +213,19 @@ function RightColumn() {
             </Box>
             <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
               {(pincodePanel.pincodes || []).map((pc, idx) => (
-                <Box 
-                  key={`${pc}-${idx}`} 
-                  sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: '1.1fr 1.6fr', 
-                    columnGap: '8px', 
-                    padding: '10px 14px', 
-                    borderBottom: '1px solid', 
+                <Box
+                  key={`${pc}-${idx}`}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '1.1fr 1.6fr',
+                    columnGap: '8px',
+                    padding: '10px 14px',
+                    borderBottom: '1px solid',
                     borderBottomColor: theme.palette.divider,
                     transition: 'background-color 0.2s ease',
                     '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.08)' 
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? 'rgba(255, 255, 255, 0.08)'
                         : 'rgba(0, 0, 0, 0.04)',
                     }
                   }}
@@ -250,6 +251,29 @@ function AppContent() {
   const { isDarkMode, theme } = useTheme();
   const { viewMode } = useViewMode();
 
+  const [filters, setFilters] = useState({});
+  
+  const [showFilter, setShowFilter] = useState(false);
+  const handleOpenFilter = () => {
+    setShowFilter(true);
+    console.log("App:Show filter set to true");
+  }
+  
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters);
+    setShowFilter(false);
+    console.log("App received filters:", newFilters);
+  //Call APIs to filter the entire dashboard.
+  };
+
+  const handleRefreshData = () => {
+    console.log("Refreshing dashboard data with filters:", filters);
+  };
+
+  useEffect(() => {
+    handleRefreshData();
+  }, [filters]);
+
   return (
     <Box sx={{ backgroundColor: isDarkMode ? theme.palette.background.default : '#f5f7fa', minHeight: '100vh' }}>
       <Header />
@@ -261,7 +285,16 @@ function AppContent() {
         {/* Map + Analytics section */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'stretch', marginTop: '12px', minHeight: '600px' }}>
           <PaperWrapper>
-            <MapAnalysis />
+            <MapAnalysis 
+            onOpenFilter={handleOpenFilter}
+        filters={filters}/>
+
+            <FilterComponent
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        onApply={handleApplyFilters}
+        selectedFilters={filters}
+      />
           </PaperWrapper>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '600px' }}>
             {/* Right column with all views */}

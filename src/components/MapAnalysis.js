@@ -26,7 +26,7 @@ function SetMapRef({ mapRef }) {
   return null;
 }
 
-const MapAnalysis = () => {
+const MapAnalysis = ({ onOpenFilter, filters }) => {
   const { isDarkMode, theme } = useTheme();
   const { viewMode, setViewMode, setDistrictPanel, districtPanel, setPincodePanel } = useViewMode();
   const [statesData, setStatesData] = useState(null);
@@ -40,6 +40,13 @@ const MapAnalysis = () => {
   const [showAllLegend, setShowAllLegend] = useState(false);
   const [showBanks, setShowBanks] = useState(false);
   const [isPincodeDataLoaded, setIsPincodeDataLoaded] = useState(false);
+  
+
+  const handleFilterIconClick = () => {
+    console.log("Map: Open filter clicked")
+    onOpenFilter();
+    // Open the FilterComponent modal
+  }
 
   useEffect(() => {
     // Load states
@@ -628,6 +635,7 @@ const MapAnalysis = () => {
             variant="contained"
             size="small"
             startIcon={<FilterAltIcon />}
+            onClick={onOpenFilter}
             sx={{
               backgroundColor: '#2196f3',
               textTransform: 'none',

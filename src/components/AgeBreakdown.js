@@ -36,16 +36,30 @@ const outerRingsPlugin = {
 const AgeBreakdown = () => {
   const { isDarkMode, theme } = useTheme();
   const [open, setOpen] = useState(false);
-  const [ageData, setAgeData] = useState([]);
+  const total_count = useRef(0);
+  const [ageStats, setAgeStats] = useState({
+    '<60 Years': 0,
+    '60-70 Years': 0,
+    '70-80 Years': 0,
+    '80-90 Years': 0,
+    '90+ Years': 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const hasFetched = useRef(false); // Guard against double-run in StrictMode
+  const color_palette = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'];
 
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
     fetchAgeDistribution();
   }, []);
+
+  useEffect(() => {
+    // Calculate total count whenever ageStats change
+    const total = Object.values(ageStats).reduce((sum, item) => sum + item, 0);
+    total_count.current = total;
+  }, [ageStats]);
 
   const fetchAgeDistribution = async () => {
     try {
@@ -54,31 +68,32 @@ const AgeBreakdown = () => {
 
       // API call with cache (5 minutes TTL)
       const apiData = await fetchWithCache(
-        'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/public-stats',
+        'http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
         {},
         5 * 60 * 1000 // 5 minutes cache
       );
       
-      if (apiData.success && apiData.ageDistribution) {
-        setAgeData(apiData.ageDistribution);
+      if (apiData.success && apiData.ageStats) {
+        setAgeStats(apiData.ageStats);
       }
+      setLoading(false);
+      hasFetched.current = true;
     } catch (err) {
       console.error('❌ Failed to fetch age distribution:', err);
       setError(err.message);
+      setLoading(false);
     } finally {
       setLoading(false);
     }
   };
 
   // Prepare chart data with fallback zeros when unavailable
-  const fallbackLabels = ['<50', '50-60', '60-70', '70-80', '>80'];
-  const hasData = ageData.length > 0;
   const data = {
-    labels: hasData ? ageData.map(item => item.ageGroup) : fallbackLabels,
+    labels: Object.keys(ageStats),
     datasets: [
       {
-        data: hasData ? ageData.map(item => item.count) : [0, 0, 0, 0, 0],
-        backgroundColor: ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'],
+        data: Object.values(ageStats),
+        backgroundColor: color_palette,
         borderWidth: 0,
         hoverOffset: 2,
         spacing: 3,
@@ -94,16 +109,13 @@ const AgeBreakdown = () => {
   };
 
   // Prepare modal chart and table data
-  const detailed = hasData ? ageData : fallbackLabels.map(label => ({ ageGroup: label, count: 0 }));
-  const totalCount = detailed.reduce((sum, item) => sum + (item.count || 0), 0);
-  const detailColors = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'];
-
+  const totalCount = total_count.current;
   const modalChartData = {
-    labels: detailed.map(item => item.ageGroup),
+    labels: Object.keys(ageStats),
     datasets: [
       {
-        data: detailed.map(item => item.count || 0),
-        backgroundColor: detailColors,
+        data: Object.values(ageStats),
+        backgroundColor: ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'],
         borderWidth: 0,
       },
     ],
@@ -126,7 +138,7 @@ const AgeBreakdown = () => {
           borderRadius: '8px',
           border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
           marginBottom: 0,
-          minHeight: '132px',
+          minHeight: '150px',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -149,29 +161,49 @@ const AgeBreakdown = () => {
         <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '13px', fontFamily: 'Inter, Roboto, Arial, sans-serif', marginBottom: '19px', display: 'flex', alignItems: 'center', gap: '8px', color: theme.palette.text.primary }}>
           AGE-WISE BREAKDOWN
         </Typography>
-        
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minHeight: 0 }}>
-          {/* Left list - Dynamic data from API or placeholders */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {(hasData ? ageData.slice(0, 4) : [0,1,2,3].map(i => ({ ageGroup: fallbackLabels[i], count: null }))).map((item, index) => {
-              const colors = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0'];
-              
-              return (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Box sx={{ width: '10px', height: '10px', backgroundColor: colors[index], borderRadius: '50%', marginRight: '8px' }} />
-                    <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>
-                      {item.ageGroup}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>
-                    {item.count == null ? '—' : item.count.toLocaleString('en-IN')}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
 
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minHeight: 0 }}>
+        
+          {/* Left list */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '10px', height: '10px', backgroundColor: '#2196f3', borderRadius: '50%', marginRight: '8px' }} />
+                        <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Under 60</Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{Object.values(ageStats)[0]}</Typography>
+                    </Box>
+        
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '10px', height: '10px', backgroundColor: '#4caf50', borderRadius: '50%', marginRight: '8px' }} />
+                        <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>60 - 70</Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{Object.values(ageStats)[1]}</Typography>
+                    </Box>
+        
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '10px', height: '10px', backgroundColor: '#f44336', borderRadius: '50%', marginRight: '8px' }} />
+                        <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>70 - 80</Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{Object.values(ageStats)[2]}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '10px', height: '10px', backgroundColor: '#9c27b0', borderRadius: '50%', marginRight: '8px' }} />
+                        <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>80-90</Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{Object.values(ageStats)[3]}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ width: '10px', height: '10px', backgroundColor: '#ff9800', borderRadius: '50%', marginRight: '8px' }} />
+                        <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Above 90</Typography>
+                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{Object.values(ageStats)[4]}</Typography>
+                    </Box>
+        </Box>
           {/* Right segmented donut chart with center icon */}
           <Box sx={{ width: '76px', height: '60px', position: 'relative' }}>
             <Doughnut data={data} options={options} plugins={[outerRingsPlugin]} />
@@ -197,7 +229,7 @@ const AgeBreakdown = () => {
             pointerEvents: 'none'
           }}
         >
-          {hasData ? 'Click for details' : (loading ? 'Loading...' : 'Data unavailable')}
+          {!loading && !error && hasFetched ? 'Click for details' : (loading ? 'Loading...' : 'Data unavailable')}
         </Box>
       </Paper>
 
@@ -243,17 +275,16 @@ const AgeBreakdown = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {detailed.map((item) => {
-                const count = item.count || 0;
-                const pct = totalCount > 0 ? (count / totalCount) * 100 : 0;
+              {Object.keys(ageStats).forEach((item) => {
+                const percentage = total_count.current > 0 ? (ageStats[item] / total_count.current) * 100 : 0;
                 return (
                   <TableRow key={item.ageGroup}>
                     <TableCell sx={{ fontSize: '12px' }}>{item.ageGroup}</TableCell>
                     <TableCell align="right" sx={{ fontSize: '12px' }}>
-                      {count.toLocaleString('en-IN')}
+                      {total_count.current.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell align="right" sx={{ fontSize: '12px' }}>
-                      {pct.toFixed(1)}%
+                      {percentage.toFixed(1)}%
                     </TableCell>
                   </TableRow>
                 );

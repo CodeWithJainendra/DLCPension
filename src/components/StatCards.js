@@ -159,11 +159,12 @@ const SwitchCard = () => {
 
 const StatCards = () => {
   const [stats, setStats] = useState({
-    totalPensioners: 0,
-    totalDLC: 0,
-    totalManual: 0,
-    verifiedToday: 0,
-    pendingQueue: 0,
+    total_pensioners: 0,
+    dlc_done: 0,
+    dlc_pending: 0,
+    dlc_done_yesterday: 0,
+    dlc_percentage: 0,
+    data_accuracy: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -187,15 +188,17 @@ const StatCards = () => {
         5 * 60 * 1000 // 5 minutes cache
       );
       
-      if (data.success) {
-        setStats({
-          totalPensioners: data.totalPensioners || 0,
-          totalDLC: data.submissionStats?.totalDLC || 0,
-          totalManual: data.submissionStats?.totalManual || 0,
-          verifiedToday: data.verifiedToday || 0,
-          pendingQueue: data.pendingQueue || 0,
-        });
-      }
+      const data = response?.summaryStats || {};
+      console.log('Dashboard Stats:', data);
+      setStats({
+          total_pensioners: data?.total_pensioners || 0,
+          dlc_done: data?.dlc_done || 0,
+          dlc_pending: data?.dlc_pending || 0, 
+          dlc_percentage: data?.dlc_percentage || 0,
+          dlc_done_yesterday: data?.dlc_done_yesterday || 0,
+          data_accuracy: data?.data_accuracy || 0,
+      });
+
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err);
       setError(err.message);
@@ -210,44 +213,44 @@ const StatCards = () => {
   };
 
   // Show cards regardless; use placeholders when loading or error
-  const display = (value) => (loading || error ? '—' : formatNumber(value));
+  const display = (value) => (loading || error ? '0' : formatNumber(value));
 
   return (
     <Box className="stat-cards" sx={{ display: 'flex', gap: '8px', margin: '0px 0', flexWrap: 'nowrap', overflowX: 'auto' }}>
       <StatCard 
         title="Total Pensioners" 
-        count={display(stats.totalPensioners)} 
+        count={display(stats.total_pensioners)} 
         icon={<PersonIcon sx={{ color: '#2196f3', fontSize: 16 }} />} 
         color="#e3f2fd"
         gradient="linear-gradient(90deg, rgba(33,150,243,0.6), rgba(33,150,243,0.95))"
       />
       <StatCard 
         title="Total DLC" 
-        count={display(stats.totalDLC)} 
+        count={display(stats.dlc_done)} 
         icon={<DescriptionIcon sx={{ color: '#9c27b0', fontSize: 16 }} />} 
         color="#f3e5f5"
         gradient="linear-gradient(90deg, rgba(156,39,176,0.6), rgba(156,39,176,0.95))"
       />
       <StatCard 
-        title="Total Manual" 
-        count={display(stats.totalManual)} 
-        icon={<EditNoteIcon sx={{ color: '#3f51b5', fontSize: 16 }} />} 
-        color="#e8eaf6"
-        gradient="linear-gradient(90deg, rgba(63,81,181,0.6), rgba(63,81,181,0.95))"
+        title="DLC Pending" 
+        count={display(stats.dlc_pending)} 
+        icon={<PendingActionsIcon sx={{ color: '#ff9800', fontSize: 16 }} />} 
+        color="#fff3e0"
+        gradient="linear-gradient(90deg, rgba(255,152,0,0.6), rgba(255,152,0,0.95))"
       />
       <StatCard 
-        title="Verified Today" 
-        count={display(stats.verifiedToday)} 
+        title="Verified Yesterday" 
+        count={display(stats.dlc_done_yesterday)} 
         icon={<VerifiedIcon sx={{ color: '#4caf50', fontSize: 16 }} />} 
         color="#e8f5e9"
         gradient="linear-gradient(90deg, rgba(76,175,80,0.6), rgba(76,175,80,0.95))"
       />
       <StatCard 
-        title="Pending Queue" 
-        count={display(stats.pendingQueue)} 
-        icon={<PendingActionsIcon sx={{ color: '#ff9800', fontSize: 16 }} />} 
-        color="#fff3e0"
-        gradient="linear-gradient(90deg, rgba(255,152,0,0.6), rgba(255,152,0,0.95))"
+        title="Data Quality %" 
+        count={display(stats.data_accuracy)} 
+        icon={<EditNoteIcon sx={{ color: '#3f51b5', fontSize: 16 }} />} 
+        color="#e8eaf6"
+        gradient="linear-gradient(90deg, rgba(63,81,181,0.6), rgba(63,81,181,0.95))"
       />
       <SwitchCard />
     </Box>
