@@ -38,24 +38,25 @@ const FilterComponent = ({
       options: [
         "Railway",
         "Defence",
-        "Autonomous",
+        "Central Autonomous",
         "EPFO",
         "Civil",
         "Others",
         "Postal",
         "Telecom",
         "Defence Sparsh",
+        "Other"
       ]
     },
     State: {
       key: "state",
       title: "State",
-      options: ["State Govt", "State Autonomous", "Other State"]
+      options: ["State Govt", "State Autonomous", "Other"]
     },
     Other: {
       key: "other",
       title: "Others",
-      options: ["Others"]
+      options: ["Other"]
     }
   };
 
