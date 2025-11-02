@@ -39,7 +39,7 @@ const FilterComponent = ({
         "Railway",
         "Defence",
         "Central Autonomous",
-        "EPFO",
+        "EPFO", 
         "Civil",
         "Others",
         "Postal",

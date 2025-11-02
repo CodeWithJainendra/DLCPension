@@ -32,7 +32,7 @@ const outerRingsPlugin = {
   },
 };
 
-const AgeBreakdown = (filters) => {
+const AgeBreakdown = (filters, refreshKey) => {
   const { isDarkMode, theme } = useTheme();
   const [open, setOpen] = useState(false);
   const total_count = useRef(0);
@@ -53,6 +53,12 @@ const AgeBreakdown = (filters) => {
     hasFetched.current = true;
     fetchAgeDistribution();
   }, []);
+
+  useEffect(() => {
+    fetchAgeDistribution();
+  }, [refreshKey]);
+
+  
 
   useEffect(() => {
     // Calculate total count whenever ageStats change

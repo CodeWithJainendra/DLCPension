@@ -115,9 +115,17 @@ const StateAnalytics = ({ filters, refreshKey }) => {
     itemsFetched.current = true;
   }, []);
 
+  useEffect(() => {
+    // Refetch data when filters or refreshKey change
+    console.log("StateAnalytics: Filters or refreshKey changed, refreshing data", filters, refreshKey);
+    fetchTopItemsForList(tabIndexToInfoMap[tabValue]);
+    itemsFetched.current = true;
+  }, [filters, refreshKey]);
 
-  const _makeAPICallOrFetchFromCache = async (endpoint, params = {filters:filters, limit:null}, ttlMs = 5 * 60 * 1000) => {
-
+  const _makeAPICallOrFetchFromCache = async (endpoint, 
+    params = {filters:filters, limit:null}, 
+    ttlMs = 5 * 60 * 1000) => {
+    console.log("Filter state analytics with filters", params)
     const apiData = await fetchWithCache(endpoint, params, ttlMs);
 
     // Accept array payloads OR object payloads where data sits in a known key
@@ -140,7 +148,12 @@ const StateAnalytics = ({ filters, refreshKey }) => {
       setAllItemsLoading(true);
       allItemsFetched.current = false;
       setAllItemsError(null);
-      const items = await _makeAPICallOrFetchFromCache(currentTabInfo.current.api, { filters:filters, limit: 35 }, 60 * 1000);
+      const items = await _makeAPICallOrFetchFromCache(currentTabInfo.current.api, 
+        { 
+          filters:filters, 
+          limit: 35 
+        }, 
+        60 * 1000);
       setAllItems(items);
       allItemsFetched.current = false;
       setAllItemsLoading(false);
@@ -158,10 +171,12 @@ const StateAnalytics = ({ filters, refreshKey }) => {
       itemsFetched.current = false;
       setItemsError(null);
       const this_tabInfo = tabInfo[list_name]
-      const items = await _makeAPICallOrFetchFromCache(this_tabInfo.api, { filters:filters, limit: 5 });
+      const items = await _makeAPICallOrFetchFromCache(this_tabInfo.api, { 
+        filters:filters, 
+        limit: 5 
+      });
       setTopItems(items);
       itemsFetched.current = true;
-      console.log(items);
     } catch (err) {
       console.error('❌ Failed to fetch top items:', list_name, err);
       setItemsError(err.message);

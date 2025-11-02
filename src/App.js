@@ -42,6 +42,11 @@ function RightColumn(filters, refreshKey) {
   const baseNames = districtPanel.districtNames || [];
   const districtNames = districtSort === 'alpha' ? [...baseNames].sort((a, b) => a.localeCompare(b)) : baseNames;
 
+  useEffect(() => {
+    // Reset sort when district names change
+    console.log("Right column needs to be refreshed:", refreshKey, filters);
+  }, [refreshKey, filters]);
+
   return (
     <Box sx={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
       {/* Analytics stack overlay */}
@@ -271,28 +276,29 @@ function AppContent() {
   const [showFilter, setShowFilter] = useState(false);
   const handleOpenFilter = () => {
     setShowFilter(true);
-    console.log("App:Show filter set to true");
   }
 
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
+    console.log("Filters updated in App:", newFilters);
     setIsLoading(true);   // start loading
     setShowFilter(false);
+    setRefreshKey(prev => prev + 1);  // increment to signal children
 
     // Simulate async refresh; in real use, fetch new data or trigger reload
     setTimeout(() => {
-      setRefreshKey(prev => prev + 1);  // increment to signal children
       setIsLoading(false);
     }, 1000);
   };
 
   const handleRefreshData = () => {
-    console.log("Refreshing dashboard data with filters:", filters);
+    
   };
 
   useEffect(() => {
+    console.log("App:Detected refreshKey change, refreshing data", refreshKey);
     handleRefreshData();
-  }, [filters]);
+  }, [refreshKey]);
 
   return (
     <Box sx={{ backgroundColor: isDarkMode ? theme.palette.background.default : '#f5f7fa', minHeight: '100vh' }}>

@@ -194,8 +194,9 @@ const StatCards = (filters, refreshKey) => {
   }, []);
 
   useEffect(() => {
+    console.log("State cards:Detected refreshKey change, refreshing data", refreshKey);
     fetchDashboardStats();
-  }, [refreshKey]);
+  }, [filters, refreshKey]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -208,7 +209,6 @@ const StatCards = (filters, refreshKey) => {
         5 * 60 * 1000 // 5 minutes cache
       );
       const data = response?.summaryStats || {};
-      console.log('Dashboard Stats:', data);
       setStats({
         total_pensioners: data?.total_pensioners || 0,
         dlc_done: data?.dlc_done || 0,
