@@ -44,7 +44,6 @@ function RightColumn(filters, refreshKey) {
 
   useEffect(() => {
     // Reset sort when district names change
-    console.log("Right column needs to be refreshed:", refreshKey, filters);
   }, [refreshKey, filters]);
 
   return (
@@ -66,7 +65,7 @@ function RightColumn(filters, refreshKey) {
             <StateAnalytics filters={filters} refreshKey={refreshKey} />
           </Box>
           <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
-            <VerificationMethods />
+            <VerificationMethods filters={filters} refreshKey={refreshKey} />
           </Box>
         </Box>
       </Box>
@@ -260,15 +259,15 @@ function AppContent() {
   const { viewMode } = useViewMode();
 
   const [filters, setFilters] = useState({
-    "banks": [],
-    "state": "",
-    "district": "",
-    "pincode": "",
+    "banks": null,
+    "state": null,
+    "district": null,
+    "pincode": null,
     "pensioner_types": {
-      "state":[], "central":[], "other":[]
+      "state":null, "central":null, "other":null
     },
-    "age_groups": [],
-    "data_status": ""
+    "age_groups": null,
+    "data_status": null
   });
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -279,8 +278,10 @@ function AppContent() {
   }
 
   const handleApplyFilters = (newFilters) => {
+    console.log("Old filters:", filters);
+    console.log("Applying new filters:", newFilters);
     setFilters(newFilters);
-    console.log("Filters updated in App:", newFilters);
+    console.log("New filters set:", filters);
     setIsLoading(true);   // start loading
     setShowFilter(false);
     setRefreshKey(prev => prev + 1);  // increment to signal children
@@ -296,7 +297,6 @@ function AppContent() {
   };
 
   useEffect(() => {
-    console.log("App:Detected refreshKey change, refreshing data", refreshKey);
     handleRefreshData();
   }, [refreshKey]);
 

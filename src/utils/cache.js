@@ -224,6 +224,7 @@ export default cacheManager;
  * @returns {Promise} - API response
  */
 export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000) => {
+  console.log("Fetch with cache called for URL:", url, "with params:", params);
   const cacheKey = cacheManager.generateKey(url, params);
 
   // If there's an in-flight request, reuse its promise immediately
@@ -253,7 +254,6 @@ export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000)
 
       const prepared_url = url;
       const bodyData = Object.keys(params).length ? JSON.stringify(params) : null;
-
       const response = await fetch(prepared_url, {
         ...fetchOptions,
         method: 'POST',
@@ -263,9 +263,6 @@ export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000)
         },
         body: bodyData,
       });
-
-      // const prepared_url = url + (Object.keys(params).length ? '?' + new URLSearchParams(fetchOptions).toString() : '');
-      // const response = await fetch(prepared_url, fetchOptions);
 
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);

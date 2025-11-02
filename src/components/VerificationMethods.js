@@ -30,7 +30,7 @@ const outerRingsPlugin = {
   },
 };
 
-const VerificationMethods = () => {
+const VerificationMethods = ({filters, refreshKey}) => {
   const [open, setOpen] = useState(false);
   const { isDarkMode, theme } = useTheme();
 

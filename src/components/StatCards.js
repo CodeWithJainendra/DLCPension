@@ -174,7 +174,8 @@ const SwitchCard = () => {
   );
 };
 
-const StatCards = (filters, refreshKey) => {
+const StatCards = ({filters, refreshKey}) => {
+  console.log("StatCards: initializing with filters:", filters);
   const [stats, setStats] = useState({
     total_pensioners: 0,
     dlc_done: 0,
@@ -194,7 +195,7 @@ const StatCards = (filters, refreshKey) => {
   }, []);
 
   useEffect(() => {
-    console.log("State cards:Detected refreshKey change, refreshing data", refreshKey);
+    console.log("Fetching stat card dashboard stats with filters:", filters);
     fetchDashboardStats();
   }, [filters, refreshKey]);
 
@@ -203,8 +204,8 @@ const StatCards = (filters, refreshKey) => {
       setLoading(true);
       setError(null);
       // API call with cache (5 minutes TTL)
-      const response = await fetchWithCache(
-        'http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
+      console.log("Fetching stat card dashboard stats with filters:", filters);
+      const response = await fetchWithCache('http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
         {filters:filters},
         5 * 60 * 1000 // 5 minutes cache
       );

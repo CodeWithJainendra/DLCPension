@@ -38,7 +38,7 @@ const FilterComponent = ({
       options: [
         "Railway",
         "Defence",
-        "Central Autonomous",
+        "Autonomous",
         "EPFO", 
         "Civil",
         "Others",
@@ -51,7 +51,7 @@ const FilterComponent = ({
     State: {
       key: "state",
       title: "State",
-      options: ["State Govt", "State Autonomous", "Other"]
+      options: ["State", "Autonomous", "Other"]
     },
     Other: {
       key: "other",
@@ -99,7 +99,7 @@ const FilterComponent = ({
         "state": {
           key: "state",
           title: "State",
-          options: ["State Govt", "State Autonomous", "Other State"]
+          options: ["State", "Autonomous", "Others"]
         },
         "other": {
           key: "other",
@@ -108,8 +108,8 @@ const FilterComponent = ({
         }
       }
     },
-    "age_group": {
-      key: "age_group",
+    "age_groups": {
+      key: "age_groups",
       title: "Age Group",
       options: ["Below 60", "60–70", "70–80", "80–90", "Above 90"],
     },
@@ -152,7 +152,7 @@ const FilterComponent = ({
     setExpanded({ ...expanded, [key]: !expanded[key] });
   };
 
-  const filterOrder = ["data_status", "age_group", "banks", "pensioner_types"];
+  const filterOrder = ["data_status", "age_groups", "banks", "pensioner_types"];
   return (
     <Dialog
       open={open}
@@ -343,7 +343,7 @@ const FilterComponent = ({
                 )}
 
                 {/* Generic sections: Age Group, Pensioner Data */}
-                {["age_group", "data_status"].includes(section.key) && (
+                {["age_groups", "data_status"].includes(section.key) && (
                   <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={0.5}>
                     {visibleOptions.map((option) => (
                       <FormControlLabel

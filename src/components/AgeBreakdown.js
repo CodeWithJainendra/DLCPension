@@ -32,7 +32,7 @@ const outerRingsPlugin = {
   },
 };
 
-const AgeBreakdown = (filters, refreshKey) => {
+const AgeBreakdown = ({filters, refreshKey}) => {
   const { isDarkMode, theme } = useTheme();
   const [open, setOpen] = useState(false);
   const total_count = useRef(0);
