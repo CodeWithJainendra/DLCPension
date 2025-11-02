@@ -15,7 +15,7 @@ const StateAnalytics = ({ filters, refreshKey }) => {
   const tabInfo = {
     'state': { api: "http://localhost:9007/dlc-pension-data-api/api/top-states", leftLabel: "State / UT", nameKey: ['state'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title: "States" },
     'PSA': { api: "http://localhost:9007/dlc-pension-data-api/api/top-psas", leftLabel: "PSA", nameKey: ['psa'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title: "PSAs" },
-    'bank': { api: "http://localhost:9007/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['Bank_name'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title: "Banks" },
+    'bank': { api: "http://localhost:9007/dlc-pension-data-api/api/top-banks", leftLabel: "Bank", nameKey: ['bank_name'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title: "Banks" },
     'central_subtype': { api: "http://localhost:9007/dlc-pension-data-api/api/top-central-pensioner-subtypes", leftLabel: "Central types", nameKey: ['Pensioner_subtype'], totalKey: ['all_pensioner_count'], completionKey: ['completion_ratio'], title: "Central" },
   }
   const middleLabel = 'Total Pensioners'

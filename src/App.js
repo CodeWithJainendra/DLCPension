@@ -17,7 +17,7 @@ import { Backdrop, CircularProgress } from '@mui/material';
 
 import './App.css';
 
-function RightColumn(filters, refreshKey) {
+function RightColumn({ filters, refreshKey }) {
   const { viewMode, districtPanel, pincodePanel, setViewMode, setDistrictPanel } = useViewMode();
   const { theme } = useTheme();
   const showAnalytics = viewMode === 'analytics';

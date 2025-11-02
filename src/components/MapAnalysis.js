@@ -50,7 +50,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   useEffect(() => {
     //TODO: map filter pending
-    console.log("Map needs to be refreshed with new data:", filters, refreshKey);
   }, [filters, refreshKey]);
 
   useEffect(() => {
