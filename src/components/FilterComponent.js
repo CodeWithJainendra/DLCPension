@@ -132,6 +132,8 @@ const FilterComponent = ({
     });
   };
 
+
+
   const handleSearchChange = (key, value) =>
     setSearchTerms({ ...searchTerms, [key]: value });
 
@@ -172,7 +174,7 @@ const FilterComponent = ({
             let optionsList = section.options || Object.keys(section.categories);
 
             // Sort for banks/pensioner type/subtype
-            if (["banks", "pensioner_types", "pensioner_subtype"].includes(section.key)) {
+            if (["banks", "pensioner_types"].includes(section.key)) {
               optionsList = Array.isArray(optionsList) ? optionsList.slice().sort((a, b) => a.localeCompare(b)) : optionsList;
             }
 
@@ -189,6 +191,7 @@ const FilterComponent = ({
                   </Typography>
 
                   {/* Select All/Deselect All Checkbox */}
+                  {section.key !== "pensioner_types" && (
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -207,6 +210,7 @@ const FilterComponent = ({
                       </Typography>
                     }
                   />
+                  )}
                 </Box>
 
                 {/* Banks with search */}
@@ -240,76 +244,100 @@ const FilterComponent = ({
                 )}
 
                 {/* Pensioner Types & Subtypes */}
-
-                {/*"pensioner_types": {
-      title: "Pensioner Types",
-      subtypes: {
-      "Central": {
-        "title": "Central",
-        "options": 
-        ["Railway", "Defence", "Autonomous", "EPFO", "Civil", "Others", "Postal", "Telecom", "Defence Sparsh"]
-      },
-        "State": {
-          title: "State",
-          options: ["State Govt", "State Autonomous", "Other State"]
-        },
-        "Other": {
-          title: "Other",
-          options: ["Others"]
-        }
-      }
-    }*/}
                 {section.key === "pensioner_types" && (
                   <Box display="flex" flexDirection="column" gap={1}>
-                    {
-                      Object.keys(section.categories).map((pensioner_type_key) => {
-                        const pensioner_type = section.categories[pensioner_type_key];
-                        console.log("Rendering pensioner type:", pensioner_type);
-                        return (
-                          <Box key={pensioner_type_key} sx={{ borderBottom: "1px solid #eee", pb: 1, mb: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                              {section.title}
+                    {Object.keys(section.categories).map((categoryKey) => {
+                      const category = section.categories[categoryKey];
+                      const selected = localFilters.pensioner_types?.[categoryKey] || [];
+
+                      // Calculate select-all state
+                      const allSelected = selected.length === category.options.length;
+                      const someSelected =
+                        selected.length > 0 && selected.length < category.options.length;
+
+                      // Handle select-all toggle for each category
+                      const handleCategorySelectAll = (checked) => {
+                        setLocalFilters({
+                          ...localFilters,
+                          pensioner_types: {
+                            ...localFilters.pensioner_types,
+                            [categoryKey]: checked ? [...category.options] : [],
+                          },
+                        });
+                      };
+
+                      // Handle individual subtype toggle
+                      const handleSubtypeToggle = (subtype) => {
+                        const current = new Set(selected);
+                        current.has(subtype) ? current.delete(subtype) : current.add(subtype);
+                        setLocalFilters({
+                          ...localFilters,
+                          pensioner_types: {
+                            ...localFilters.pensioner_types,
+                            [categoryKey]: Array.from(current),
+                          },
+                        });
+                      };
+
+                      return (
+                        <Box
+                          key={categoryKey}
+                          sx={{
+                            borderBottom: "1px solid #eee",
+                            pb: 1,
+                            mb: 1,
+                          }}
+                        >
+                          {/* Row: Title + Select All aligned horizontally */}
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr auto",
+                              alignItems: "center",
+                              mb: 0.5,
+                            }}
+                          >
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {category.title}
                             </Typography>
+
                             <FormControlLabel
                               control={
                                 <Checkbox
                                   size="small"
-                                  checked={false /*
-                                    Object.values(localFilters[section.key]).reduce((sum, arr) => sum + arr.length, 0)
-                                    ===
-                                    Object.values(pensioner_type.options.reduce((sum, arr) => sum + arr.length, 0))}
-                                  indeterminate={
-                                    Object.values(localFilters[section.key]).reduce((sum, arr) => sum + arr.length, 0)
-                                    <
-                                    Object.values(pensioner_type.suboptions.reduce((sum, arr) => sum + arr.length, 0))*/}
-                                  onChange={(e) => handleSelectAll(section.key, section.subtypes, e.target.checked)}
+                                  checked={allSelected}
+                                  indeterminate={someSelected}
+                                  onChange={(e) => handleCategorySelectAll(e.target.checked)}
                                 />
                               }
                               label={
                                 <Typography variant="body2">
-                                  {true ?
-                                  "Deselect All" : "Select All"}
+                                  {allSelected ? "Deselect All" : "Select All"}
                                 </Typography>
                               }
+                              sx={{ m: 0, justifySelf: "end" }}
                             />
-                            <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={0.5}>
-                              {pensioner_type["options"].map((subtype) => (
-                                <FormControlLabel
-                                  key={subtype}
-                                  control={
-                                    <Checkbox
-                                      size="small"
-                                      checked={true /*localFilters["pensioner_subtype"]?.includes(subtype) || false*/}
-                                      onChange={() => handleOptionToggle("pensioner_types", subtype)}
-                                    />
-                                  }
-                                  label={<Typography variant="body2">{subtype}</Typography>}
-                                />
-                              ))}
-                            </Box>
                           </Box>
-                        );
-                      })}
+
+                          {/* Subtype checkboxes */}
+                          <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={0.5}>
+                            {category.options.map((subtype) => (
+                              <FormControlLabel
+                                key={subtype}
+                                control={
+                                  <Checkbox
+                                    size="small"
+                                    checked={selected.includes(subtype)}
+                                    onChange={() => handleSubtypeToggle(subtype)}
+                                  />
+                                }
+                                label={<Typography variant="body2">{subtype}</Typography>}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      );
+                    })}
                   </Box>
                 )}
 
