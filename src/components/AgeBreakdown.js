@@ -7,7 +7,6 @@ import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchWithCache } from '../utils/cache';
-import { LinearProgress } from '@mui/material';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -33,7 +32,7 @@ const outerRingsPlugin = {
   },
 };
 
-const AgeBreakdown = () => {
+const AgeBreakdown = (filters) => {
   const { isDarkMode, theme } = useTheme();
   const [open, setOpen] = useState(false);
   const total_count = useRef(0);
@@ -69,7 +68,7 @@ const AgeBreakdown = () => {
       // API call with cache (5 minutes TTL)
       const apiData = await fetchWithCache(
         'http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
-        {},
+        {filters:filters, limit:null},
         5 * 60 * 1000 // 5 minutes cache
       );
       
@@ -158,6 +157,23 @@ const AgeBreakdown = () => {
           }
         }}
       >
+
+        {loading && (
+  <Box
+    sx={{
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backdropFilter: 'blur(2px)',
+      backgroundColor: 'rgba(255,255,255,0.5)',
+      zIndex: 10,
+    }}
+  >
+    <CircularProgress size={24} />
+  </Box>
+)}
         <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '13px', fontFamily: 'Inter, Roboto, Arial, sans-serif', marginBottom: '19px', display: 'flex', alignItems: 'center', gap: '8px', color: theme.palette.text.primary }}>
           AGE-WISE BREAKDOWN
         </Typography>

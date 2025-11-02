@@ -4,7 +4,7 @@ module.exports = function(app) {
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'https://samar.iitk.ac.in/dlc-pension-data-api',
+      target: 'http://localhost:9007/dlc-pension-data-api',
       changeOrigin: true,
       secure: false,
       pathRewrite: {

@@ -26,9 +26,9 @@ function SetMapRef({ mapRef }) {
   return null;
 }
 
-const MapAnalysis = ({ onOpenFilter, filters }) => {
-  const { isDarkMode, theme } = useTheme();
-  const { viewMode, setViewMode, setDistrictPanel, districtPanel, setPincodePanel } = useViewMode();
+const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
+  const {isDarkMode, theme } = useTheme();
+  const {viewMode, setViewMode, setDistrictPanel, districtPanel, setPincodePanel } = useViewMode();
   const [statesData, setStatesData] = useState(null);
   const [districtsData, setDistrictsData] = useState(null);
   const [pincodesData, setPincodesData] = useState(null);
@@ -47,6 +47,11 @@ const MapAnalysis = ({ onOpenFilter, filters }) => {
     onOpenFilter();
     // Open the FilterComponent modal
   }
+
+  useEffect(() => {
+    //TODO: map filter pending
+    console.log("Map needs to be filtered with filters:", filters);
+  }, [filters, refreshKey]);
 
   useEffect(() => {
     // Load states

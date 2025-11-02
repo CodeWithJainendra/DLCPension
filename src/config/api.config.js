@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   // Base URL for production API
-  BASE_URL: 'https://samar.iitk.ac.in/dlc-pension-data-api',
+  BASE_URL: 'http://localhost:9007/dlc-pension-data-api',
   
   // Timeout for API requests (in milliseconds)
   TIMEOUT: 30000, // 30 seconds

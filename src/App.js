@@ -13,9 +13,11 @@ import FilterComponent from './components/FilterComponent';
 import VerificationMethods from './components/VerificationMethods';
 import AIChatCard from './components/AIChatCard';
 import Login from './components/Login';
+import { Backdrop, CircularProgress } from '@mui/material';
+
 import './App.css';
 
-function RightColumn() {
+function RightColumn(filters, refreshKey) {
   const { viewMode, districtPanel, pincodePanel, setViewMode, setDistrictPanel } = useViewMode();
   const { theme } = useTheme();
   const showAnalytics = viewMode === 'analytics';
@@ -24,7 +26,8 @@ function RightColumn() {
   const showPincodes = viewMode === 'pincodes';
   // Sorting state for districts panel
   const [districtSort, setDistrictSort] = React.useState('count');
-  
+
+
   const common = {
     position: 'absolute',
     top: 0,
@@ -52,10 +55,10 @@ function RightColumn() {
       >
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ flex: '0 0 20%', minHeight: 160, mb: '20px' }}>
-            <AgeBreakdown />
+            <AgeBreakdown filters={filters} />
           </Box>
           <Box sx={{ flex: '1 1 50%', minHeight: 0, mb: 0 }}>
-            <StateAnalytics />
+            <StateAnalytics filters={filters} refreshKey={refreshKey} />
           </Box>
           <Box sx={{ flex: '0 0 30%', minHeight: 0 }}>
             <VerificationMethods />
@@ -251,19 +254,36 @@ function AppContent() {
   const { isDarkMode, theme } = useTheme();
   const { viewMode } = useViewMode();
 
-  const [filters, setFilters] = useState({});
-  
+  const [filters, setFilters] = useState({
+    "banks": [],
+    "state": "",
+    "district": "",
+    "pincode": "",
+    "pensioner_types": {
+      "state":[], "central":[], "other":[]
+    },
+    "age_groups": [],
+    "data_status": ""
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const [showFilter, setShowFilter] = useState(false);
   const handleOpenFilter = () => {
     setShowFilter(true);
     console.log("App:Show filter set to true");
   }
-  
+
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
+    setIsLoading(true);   // start loading
     setShowFilter(false);
-    console.log("App received filters:", newFilters);
-  //Call APIs to filter the entire dashboard.
+
+    // Simulate async refresh; in real use, fetch new data or trigger reload
+    setTimeout(() => {
+      setRefreshKey(prev => prev + 1);  // increment to signal children
+      setIsLoading(false);
+    }, 1000);
   };
 
   const handleRefreshData = () => {
@@ -278,27 +298,39 @@ function AppContent() {
     <Box sx={{ backgroundColor: isDarkMode ? theme.palette.background.default : '#f5f7fa', minHeight: '100vh' }}>
       <Header />
 
+      <Backdrop
+        open={isLoading}
+        sx={{
+          color: '#fff',
+          zIndex: (theme) => theme.zIndex.drawer + 1000,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+        }}
+      >
+        <CircularProgress color="inherit" />
+      </Backdrop>
+
       <Container maxWidth="xl" sx={{ paddingTop: '16px', paddingBottom: '24px' }}>
         {/* Top stat cards */}
-        <StatCards />
+        <StatCards filters={filters} refreshKey={refreshKey} />
 
         {/* Map + Analytics section */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'stretch', marginTop: '12px', minHeight: '600px' }}>
           <PaperWrapper>
-            <MapAnalysis 
-            onOpenFilter={handleOpenFilter}
-        filters={filters}/>
+            <MapAnalysis
+              onOpenFilter={handleOpenFilter}
+              filters={filters}
+              refreshKey={refreshKey} />
 
             <FilterComponent
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        onApply={handleApplyFilters}
-        selectedFilters={filters}
-      />
+              open={showFilter}
+              onClose={() => setShowFilter(false)}
+              onApply={handleApplyFilters}
+              selectedFilters={filters}
+            />
           </PaperWrapper>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '600px' }}>
             {/* Right column with all views */}
-            <RightColumn />
+            <RightColumn filters={filters} refreshKey={refreshKey} />
           </Box>
         </Box>
       </Container>

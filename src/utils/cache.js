@@ -11,11 +11,11 @@ class CacheManager {
     this.defaultTTL = 5 * 60 * 1000; // 5 minutes default
     // Track in-flight requests to dedupe concurrent calls
     this.pending = new Map();
-    
+
     // Load existing cache from localStorage on init
     this.loadFromLocalStorage();
   }
-  
+
   /**
    * Load cache from localStorage
    */
@@ -23,22 +23,22 @@ class CacheManager {
     try {
       const cacheData = localStorage.getItem('api_cache');
       const timestampData = localStorage.getItem('api_cache_timestamps');
-      
+
       if (cacheData && timestampData) {
         const cache = JSON.parse(cacheData);
         const timestamps = JSON.parse(timestampData);
-        
+
         // Restore cache and timestamps
         Object.entries(cache).forEach(([key, value]) => {
           this.cache.set(key, value);
         });
-        
+
         Object.entries(timestamps).forEach(([key, value]) => {
           this.timestamps.set(key, value);
         });
-        
+
         console.log('💾 Cache loaded from localStorage:', this.cache.size, 'entries');
-        
+
         // Clean expired entries
         this.cleanExpired();
       }
@@ -46,7 +46,7 @@ class CacheManager {
       console.error('❌ Failed to load cache from localStorage:', err);
     }
   }
-  
+
   /**
    * Save cache to localStorage
    */
@@ -54,15 +54,15 @@ class CacheManager {
     try {
       const cacheObj = {};
       const timestampObj = {};
-      
+
       this.cache.forEach((value, key) => {
         cacheObj[key] = value;
       });
-      
+
       this.timestamps.forEach((value, key) => {
         timestampObj[key] = value;
       });
-      
+
       localStorage.setItem('api_cache', JSON.stringify(cacheObj));
       localStorage.setItem('api_cache_timestamps', JSON.stringify(timestampObj));
     } catch (err) {
@@ -112,7 +112,7 @@ class CacheManager {
       ttl: ttl,
     });
     console.log(`💾 Cache SET: ${key} (TTL: ${ttl / 1000}s)`);
-    
+
     // Save to localStorage for persistence
     this.saveToLocalStorage();
   }
@@ -150,7 +150,7 @@ class CacheManager {
     this.cache.delete(key);
     this.timestamps.delete(key);
     console.log(`🗑️ Cache DELETE: ${key}`);
-    
+
     // Update localStorage
     this.saveToLocalStorage();
   }
@@ -162,11 +162,11 @@ class CacheManager {
     this.cache.clear();
     this.timestamps.clear();
     this.pending.clear();
-    
+
     // Clear localStorage
     localStorage.removeItem('api_cache');
     localStorage.removeItem('api_cache_timestamps');
-    
+
     console.log('🧹 Cache CLEARED');
   }
 
@@ -243,22 +243,36 @@ export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000)
 
   // Add CORS mode and credentials
   const fetchOptions = {
-    ...params,
+    // ...params,
     mode: 'cors',
     credentials: 'omit',
   };
 
   const requestPromise = (async () => {
     try {
-    
-      const prepared_url = url + (Object.keys(params).length ? '?' + new URLSearchParams(fetchOptions).toString() : '');
-      const response = await fetch(prepared_url, fetchOptions);
+
+      const prepared_url = url;
+      const bodyData = Object.keys(params).length ? JSON.stringify(params) : null;
+
+      const response = await fetch(prepared_url, {
+        ...fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(fetchOptions.headers || {}),
+        },
+        body: bodyData,
+      });
+
+      // const prepared_url = url + (Object.keys(params).length ? '?' + new URLSearchParams(fetchOptions).toString() : '');
+      // const response = await fetch(prepared_url, fetchOptions);
 
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json()
+      console.log(data);
 
       // Store in cache
       cacheManager.set(cacheKey, data, cacheTTL);

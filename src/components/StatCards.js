@@ -11,30 +11,31 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import { fetchWithCache } from '../utils/cache';
 
-const StatCard = ({ title, count, icon, color, gradient }) => {
+const StatCard = ({ title, count, icon, color, gradient, loading }) => {
   const { isDarkMode, theme } = useTheme();
-  
+
   return (
-    <Paper 
-      elevation={0} 
-      sx={{ 
+    <Paper
+      elevation={0}
+      sx={{
         position: 'relative',
-        flex: 1, 
-        display: 'flex', 
-        alignItems: 'center', 
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         padding: '6px 6px 4px',
         borderRadius: '10px',
         border: isDarkMode ? '1px solid #415A77' : '1px solid #eef1f5',
         margin: '0 4px',
-        background: isDarkMode 
+        background: isDarkMode
           ? `linear-gradient(180deg, rgba(65,90,119,0.3) 0%, ${theme.palette.background.paper} 85%)`
           : `linear-gradient(180deg, ${color} 0%, #ffffff 85%)`,
         overflow: 'hidden',
         minWidth: '200px',
         minHeight: '64px',
         '&:first-of-type': { marginLeft: 0 },
-        '&:last-of-type': { marginRight: 0 }
+        '&:last-of-type': { marginRight: 0 },
+        opacity: loading ? 0.6 : 1
       }}
     >
       {/* bottom accent bar */}
@@ -60,19 +61,35 @@ const StatCard = ({ title, count, icon, color, gradient }) => {
       </Box>
 
       {/* Right: icon */}
-      <Box sx={{ 
-        backgroundColor: color, 
-        borderRadius: '50%', 
-        width: '28px', 
-        height: '28px', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Box sx={{
+        backgroundColor: color,
+        borderRadius: '50%',
+        width: '28px',
+        height: '28px',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         border: '1px solid #e6e9ef'
       }}>
         {icon}
       </Box>
+      {loading && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(255,255,255,0.6)',
+            borderRadius: '50%',
+            p: 0.5,
+            zIndex: 2,
+          }}
+        >
+          <CircularProgress size={16} thickness={5} />
+        </Box>
+      )}
     </Paper>
   );
 };
@@ -82,7 +99,7 @@ const SwitchCard = () => {
   const { viewMode, setViewMode } = useViewMode();
   const selected = viewMode;
   return (
-    <Paper 
+    <Paper
       elevation={0}
       sx={{
         position: 'relative',
@@ -94,7 +111,7 @@ const SwitchCard = () => {
         borderRadius: '10px',
         border: isDarkMode ? '1px solid #415A77' : '1px solid #eef1f5',
         margin: '0 4px',
-        background: isDarkMode 
+        background: isDarkMode
           ? `linear-gradient(180deg, rgba(65,90,119,0.3) 0%, ${theme.palette.background.paper} 85%)`
           : 'linear-gradient(180deg, #e3f2fd 0%, #ffffff 85%)',
         overflow: 'hidden',
@@ -157,7 +174,7 @@ const SwitchCard = () => {
   );
 };
 
-const StatCards = () => {
+const StatCards = (filters, refreshKey) => {
   const [stats, setStats] = useState({
     total_pensioners: 0,
     dlc_done: 0,
@@ -176,27 +193,29 @@ const StatCards = () => {
     fetchDashboardStats();
   }, []);
 
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [refreshKey]);
+
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
       setError(null);
-
       // API call with cache (5 minutes TTL)
-      const data = await fetchWithCache(
-        'https://samar.iitk.ac.in/dlc-pension-data-api/api/dashboard/public-stats',
-        {},
+      const response = await fetchWithCache(
+        'http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
+        {filters:filters},
         5 * 60 * 1000 // 5 minutes cache
       );
-      
       const data = response?.summaryStats || {};
       console.log('Dashboard Stats:', data);
       setStats({
-          total_pensioners: data?.total_pensioners || 0,
-          dlc_done: data?.dlc_done || 0,
-          dlc_pending: data?.dlc_pending || 0, 
-          dlc_percentage: data?.dlc_percentage || 0,
-          dlc_done_yesterday: data?.dlc_done_yesterday || 0,
-          data_accuracy: data?.data_accuracy || 0,
+        total_pensioners: data?.total_pensioners || 0,
+        dlc_done: data?.dlc_done || 0,
+        dlc_pending: data?.dlc_pending || 0,
+        dlc_percentage: data?.dlc_percentage || 0,
+        dlc_done_yesterday: data?.dlc_done_yesterday || 0,
+        data_accuracy: data?.data_accuracy || 0,
       });
 
     } catch (err) {
@@ -217,40 +236,45 @@ const StatCards = () => {
 
   return (
     <Box className="stat-cards" sx={{ display: 'flex', gap: '8px', margin: '0px 0', flexWrap: 'nowrap', overflowX: 'auto' }}>
-      <StatCard 
-        title="Total Pensioners" 
-        count={display(stats.total_pensioners)} 
-        icon={<PersonIcon sx={{ color: '#2196f3', fontSize: 16 }} />} 
+      <StatCard
+        title="Total Pensioners"
+        count={display(stats.total_pensioners)}
+        icon={<PersonIcon sx={{ color: '#2196f3', fontSize: 16 }} />}
         color="#e3f2fd"
         gradient="linear-gradient(90deg, rgba(33,150,243,0.6), rgba(33,150,243,0.95))"
+        loading={loading}
       />
-      <StatCard 
-        title="Total DLC" 
-        count={display(stats.dlc_done)} 
-        icon={<DescriptionIcon sx={{ color: '#9c27b0', fontSize: 16 }} />} 
+      <StatCard
+        title="Total DLC"
+        count={display(stats.dlc_done)}
+        icon={<DescriptionIcon sx={{ color: '#9c27b0', fontSize: 16 }} />}
         color="#f3e5f5"
         gradient="linear-gradient(90deg, rgba(156,39,176,0.6), rgba(156,39,176,0.95))"
+        loading={loading}
       />
-      <StatCard 
-        title="DLC Pending" 
-        count={display(stats.dlc_pending)} 
-        icon={<PendingActionsIcon sx={{ color: '#ff9800', fontSize: 16 }} />} 
+      <StatCard
+        title="DLC Pending"
+        count={display(stats.dlc_pending)}
+        icon={<PendingActionsIcon sx={{ color: '#ff9800', fontSize: 16 }} />}
         color="#fff3e0"
         gradient="linear-gradient(90deg, rgba(255,152,0,0.6), rgba(255,152,0,0.95))"
+        loading={loading}
       />
-      <StatCard 
-        title="Verified Yesterday" 
-        count={display(stats.dlc_done_yesterday)} 
-        icon={<VerifiedIcon sx={{ color: '#4caf50', fontSize: 16 }} />} 
+      <StatCard
+        title="Verified Yesterday"
+        count={display(stats.dlc_done_yesterday)}
+        icon={<VerifiedIcon sx={{ color: '#4caf50', fontSize: 16 }} />}
         color="#e8f5e9"
         gradient="linear-gradient(90deg, rgba(76,175,80,0.6), rgba(76,175,80,0.95))"
+        loading={loading}
       />
-      <StatCard 
-        title="Data Quality %" 
-        count={display(stats.data_accuracy)} 
-        icon={<EditNoteIcon sx={{ color: '#3f51b5', fontSize: 16 }} />} 
+      <StatCard
+        title="Data Quality %"
+        count={display(stats.data_accuracy)}
+        icon={<EditNoteIcon sx={{ color: '#3f51b5', fontSize: 16 }} />}
         color="#e8eaf6"
         gradient="linear-gradient(90deg, rgba(63,81,181,0.6), rgba(63,81,181,0.95))"
+        loading={loading}
       />
       <SwitchCard />
     </Box>
