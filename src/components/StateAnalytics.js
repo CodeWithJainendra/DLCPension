@@ -122,7 +122,6 @@ const StateAnalytics = ({ filters, refreshKey }) => {
   }, [filters, refreshKey]);
 
   const _makeAPICallOrFetchFromCache = async (endpoint, params, ttlMs = 5 * 60 * 1000) => {
-    console.log("Inside _makeAPICallOrFetchFromCache", params);
     const apiData = await fetchWithCache(endpoint, params, ttlMs);
 
     // Accept array payloads OR object payloads where data sits in a known key
@@ -145,7 +144,6 @@ const StateAnalytics = ({ filters, refreshKey }) => {
       setAllItemsLoading(true);
       allItemsFetched.current = false;
       setAllItemsError(null);
-      console.log("Calling _makeAPICallOrFetchFromCache", filters);
       const items = await _makeAPICallOrFetchFromCache(currentTabInfo.current.api, 
         { 
           filters:filters, 

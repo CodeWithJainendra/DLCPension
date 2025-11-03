@@ -5,6 +5,7 @@
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
 }
 
+
 body {
   background-color: #f5f7fa;
   transition: background-color 0.3s ease;
@@ -99,7 +100,7 @@ body {
 .leaflet-tooltip.state-hover-tooltip {
   background: #ffffff;
   border: 1px solid #eaeaea;
-  border-radius: 8px;
+  border-radius: px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   padding: 8px 10px;
   color: #2b2e3a;
@@ -118,3 +119,14 @@ body {
 .leaflet-container {
   background: #ffffff !important;
 }
+
+
+.leaflet-interactive:focus {
+  outline: none !important;
+}
+
+.leaflet-interactive {
+  outline: none !important;
+  stroke-opacity: 1 !important; /* ensures consistent hover styling */
+}
+

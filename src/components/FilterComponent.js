@@ -78,11 +78,9 @@ const FilterComponent = ({
         "Punjab & Sind Bank",
         "HDFC Bank",
         "ICICI Bank",
-        "Axis Bank",
         "IDBI Bank",
-        "Yes Bank",
-        "IndusInd Bank",
-        "Kotak Mahindra Bank",
+        "Bandhan Bank",
+        "Bank of Maharashtra"
       ],
     },
     "pensioner_types": {
@@ -115,8 +113,8 @@ const FilterComponent = ({
     },
     "data_status": {
       key: "data_status",
-      title: "Pensioner Data",
-      options: ["All", "Completed", "Pending", "Last year manual"],
+      title: "Pensioner Categories",
+      options: ["All pensioners", "DLC Completed", "DLC Pending", "DLC Pending (PLC to DLC conversion)"],
     }
   };
 

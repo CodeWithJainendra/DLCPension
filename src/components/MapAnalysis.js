@@ -8,6 +8,7 @@ import indiaPincodesUrl from '../IndiaMap/INDIAN_PINCODE_BOUNDARY.geojson';
 import { useTheme } from '../contexts/ThemeContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import L from 'leaflet';
+import { fetchWithCache } from '../utils/cache';
 
 // Known Indian states/UTs to help detect names from various schemas
 const KNOWN_STATES = [
@@ -21,12 +22,13 @@ function SetMapRef({ mapRef }) {
   const map = useMap();
   useEffect(() => {
     mapRef.current = map;
-    // console.log('[Map] Map ref set:', !!map);
   }, [map, mapRef]);
   return null;
 }
 
 const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
+
+  const geoStatsUrl = 'http://localhost:9007/dlc-pension-data-api/api/geo-stats';
   const { isDarkMode, theme } = useTheme();
   const { viewMode, setViewMode, setDistrictPanel, districtPanel, setPincodePanel } = useViewMode();
   const [statesData, setStatesData] = useState(null);
@@ -34,23 +36,49 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   const [pincodesData, setPincodesData] = useState(null);
   const [pincodesInDistrict, setPincodesInDistrict] = useState(null);
   const [geoData, setGeoData] = useState(null);
+  const [geoStats, setGeoStats] = useState(null);
   const [viewLevel, setViewLevel] = useState('country'); // 'country' | 'state'
   const [selectedStateName, setSelectedStateName] = useState(null);
   const mapRef = useRef(null);
   const [showAllLegend, setShowAllLegend] = useState(false);
   const [showBanks, setShowBanks] = useState(false);
   const [isPincodeDataLoaded, setIsPincodeDataLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
 
-  const handleFilterIconClick = () => {
-    console.log("Map: Open filter clicked")
-    onOpenFilter();
-    // Open the FilterComponent modal
+  const _makeAPICallOrFetchFromCache = async (endpoint, params, ttlMs = 5 * 60 * 1000) => {
+      const apiData = await fetchWithCache(endpoint, params, ttlMs);
+      const featureStats = apiData["data"];
+      return featureStats;
+    };
+
+  const fetchGeoStats = async (level, name, filters) => {
+  try {
+    setLoading(true);
+    console.log('[geo-stats] fetching for', level, name, filters);
+    const params = {level: level, name:name, filters:filters};
+    const data = await _makeAPICallOrFetchFromCache(geoStatsUrl, params, 5 * 60 * 1000);
+    console.log('[geo-stats] fetched data:', data);
+    setGeoStats(data.geoStats || []);
+    setLoading(false);
+  } catch (err) {
+    console.error('[geo-stats] failed:', err);
+    return null;
   }
+  finally {  
+    setLoading(false);  
+  }
+};
+
 
   useEffect(() => {
-    //TODO: map filter pending
-  }, [filters, refreshKey]);
+    console.log("Need to fetch data for:", viewMode, viewLevel, selectedStateName, districtPanel);
+    console.log("need to also refresh the data:", filters, refreshKey);
+    const featureName = viewLevel === 'state' ? selectedStateName 
+                  : viewLevel ===  'district'? districtPanel.selectedDistrictName 
+                  : null
+    fetchGeoStats(viewLevel, featureName , filters);
+  }, [filters, refreshKey, viewMode]);
 
   useEffect(() => {
     // Load states
@@ -99,105 +127,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Hide/Reset Show Banks when leaving districts/pincodes
-  useEffect(() => {
-    if (viewMode !== 'districts' && viewMode !== 'pincodes') {
-      setShowBanks(false);
-    }
-  }, [viewMode]);
-
-  // Open pincodes when a district is selected from the right-side list
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) {
-      return;
-    }
-    const selected = districtPanel?.selectedDistrictName;
-    if (viewLevel === 'state' && selected) {
-      try {
-        // Ensure base datasets are loaded
-        if (!geoData || !pincodesData || !pincodesData.features || pincodesData.features.length === 0) {
-          // Show a message to the user
-          setPincodePanel({ districtName: selected, pincodes: [] });
-          return;
-        }
-
-        // Active state from panel or local selection
-        const activeState = districtPanel?.stateName || selectedStateName;
-
-        // Try to find the district in the current geoData (per-state districts)
-        let feature = (geoData.features || []).find((f) => {
-          const distName = getDistrictName(f.properties || {});
-          const match = normalize(distName) === normalize(selected);
-          return match;
-        });
-
-
-        // Fallback: find in global districts by name and current state (if known)
-        if (!feature && districtsData) {
-          const candidates = (districtsData.features || []).filter((f) => {
-            const props = f.properties || {};
-            const distName = getDistrictName(props);
-            const nameMatch = normalize(distName) === normalize(selected) ||
-              distName?.toLowerCase().includes(String(selected).toLowerCase());
-            if (!nameMatch) return false;
-            // If we know the state, enforce it; else accept name-only match
-            return activeState ? districtMatchesState(props, activeState) : true;
-          });
-          if (candidates.length) feature = candidates[0];
-        }
-
-        if (!feature) {
-          console.warn('[Map] No feature found for district:', selected, 'in state:', activeState);
-          console.log('[Map] Available districts in geoData:', (geoData.features || []).map(f => getDistrictName(f.properties || {})));
-          return;
-        }
-
-        const distBounds = L.geoJSON(feature).getBounds();
-
-        let filtered = (pincodesData.features || []).filter((pf) => {
-          try {
-            const pbounds = L.geoJSON(pf).getBounds();
-            const center = pbounds.getCenter();
-            return distBounds.contains(center);
-          } catch (e) {
-            return false;
-          }
-        });
-
-
-        if (!filtered.length) {
-          filtered = (pincodesData.features || []).filter((pf) => {
-            try {
-              const pbounds = L.geoJSON(pf).getBounds();
-              return distBounds.intersects(pbounds);
-            } catch (e) {
-              return false;
-            }
-          });
-        }
-
-        const fc = { type: 'FeatureCollection', features: filtered };
-        setPincodesInDistrict(fc);
-        if (viewMode !== 'pincodes') setViewMode('pincodes');
-        const pincodeList = filtered.map((pf) => String(pf.properties?.Pincode || ''));
-        setPincodePanel({ districtName: selected, pincodes: pincodeList });
-        map.invalidateSize();
-
-        if (filtered.length > 0) {
-          setTimeout(() => {
-            const layerBounds = L.geoJSON(fc).getBounds();
-            fitBoundsSmart(map, layerBounds, { padding: [80, 80], maxZoom: 15, duration: 0.9 });
-          }, 50);
-        } else {
-          console.warn('[Map] No pincodes to display for district:', selected);
-        }
-      } catch (e) {
-        console.error('[Map] Failed to compute pincodes from list click', selected, e);
-      }
-    }
-  }, [viewLevel, viewMode, districtPanel?.selectedDistrictName, pincodesData, geoData, districtsData, selectedStateName, districtPanel?.stateName]);
 
   // Enforce zoom based on view changes
   useEffect(() => {
@@ -304,45 +233,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
     return 'District';
   };
 
-  const filterDistrictsForState = (stateFeature, districts) => {
-    const stateName = getStateName(stateFeature);
-    let filtered = (districts.features || []).filter((f) => districtMatchesState(f.properties, stateName));
-    const propCount = filtered.length;
-    // If property filter fails (0) or is clearly wrong (too many), use spatial fallback by center-in-bounds
-    if (!filtered.length || filtered.length > 150) {
-      try {
-        const stateLayer = L.geoJSON(stateFeature);
-        const stateBounds = stateLayer.getBounds();
-        filtered = (districts.features || []).filter((df) => {
-          try {
-            const dbounds = L.geoJSON(df).getBounds();
-            const center = dbounds.getCenter();
-            return stateBounds.contains(center);
-          } catch (e) {
-            return false;
-          }
-        });
-      } catch (e) { }
-    }
-    const centerCount = filtered.length;
-    // If still none, do a looser bounds intersection fallback
-    if (!filtered.length) {
-      try {
-        const stateLayer = L.geoJSON(stateFeature);
-        const stateBounds = stateLayer.getBounds();
-        filtered = (districts.features || []).filter((df) => {
-          try {
-            const dbounds = L.geoJSON(df).getBounds();
-            return stateBounds.intersects(dbounds);
-          } catch (e) {
-            return false;
-          }
-        });
-      } catch (e) { }
-    }
-    return filtered;
-  };
-
   // Build a dynamic map of per-state district files using webpack require.context
   // This scans ../IndiaMap/STATES/** for files ending in _DISTRICTS.geojson
   const districtsContext = require.context('../IndiaMap/STATES', true, /_DISTRICTS\.geojson$/);
@@ -441,10 +331,11 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   const onEachStateFeature = (feature, layer) => {
     const stateName = getStateName(feature);
+    const stats = geoStats.find(gs => gs.State === stateName) || {};
     layer.on({
       mouseover: (e) => {
         layer.setStyle({ weight: 3, fillOpacity: 1 });
-        const content = buildHoverTooltip(stateName);
+        const content = buildHoverTooltip(stateName, stats);
         layer
           .bindTooltip(content, {
             sticky: true,
@@ -460,6 +351,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
       },
       click: () => {
         setSelectedStateName(stateName);
+        filters.state = stateName;
         openStateView(stateName);
       },
     });
@@ -467,9 +359,10 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   const onEachDistrictFeature = (feature, layer) => {
     const districtName = getDistrictName(feature?.properties || {});
+    const stats = geoStats.find(gs => gs.District === districtName) || {};
     layer.on({
       mouseover: (e) => {
-        const content = buildHoverTooltip(districtName);
+        const content = buildHoverTooltip(districtName, stats);
         layer
           .bindTooltip(content, {
             sticky: true,
@@ -486,6 +379,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
         // When a district is clicked, compute pincodes within it
         try {
           if (!pincodesData) return;
+          filters.district = districtName;
           const distLayer = L.geoJSON(feature);
           const distBounds = distLayer.getBounds();
           let filtered = (pincodesData.features || []).filter((pf) => {
@@ -532,9 +426,10 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   // Pincode feature hover: show tooltip with pincode number
   const onEachPincodeFeature = (feature, layer) => {
     const pin = String(feature?.properties?.Pincode || '').trim();
+    const stats = geoStats.find(gs => gs.Pincode === pin) || {};
     layer.on({
       mouseover: (e) => {
-        const content = buildHoverTooltip(pin);
+        const content = buildHoverTooltip(pin + " " + (feature.properties?.Office_Name || ''), stats);
         layer
           .bindTooltip(content, {
             sticky: true,
@@ -546,7 +441,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
       },
       mouseout: () => {
         layer.closeTooltip();
-      },
+      }
     });
   };
 
@@ -588,21 +483,14 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   ];
 
 
-  const buildHoverTooltip = (title, stats = {}) => {
-  const {
-    total_pensioners = '---',
-    dlc_done = '---',
-    dlc_pending = '---',
-    conversion_potential = '---',
-  } = stats;
-
+  const buildHoverTooltip = (title, stats) => {
   return `
     <div class="state-hover-card">
       <div class="state-card-title">${title}</div>
-      <div class="state-card-total-pensioner">Total: ${total_pensioners}</div>
-      <div class="state-card-lc-done-pensioner">LC done: ${dlc_done}</div>
-      <div class="state-card-pending-pensioner">Pending: ${dlc_pending}</div>
-      <div class="state-card-pending-last-manual-pensioner">Conversion potential: ${conversion_potential}</div>
+      <div class="state-card-total-pensioner">Total: ${stats.total_pensioners}</div>
+      <div class="state-card-lc-done-pensioner">LC done: ${stats.dlc_done}</div>
+      <div class="state-card-pending-pensioner">Pending: ${stats.dlc_pending}</div>
+      <div class="state-card-pending-last-manual-pensioner">Conversion potential: ${stats.conversion_potential}</div>
     </div>
   `;
 };
@@ -628,19 +516,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
           Map Analysis
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {(viewMode === 'districts' || viewMode === 'pincodes') && (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '12px', color: theme.palette.text.primary }}>
-                <input
-                  type="checkbox"
-                  checked={showBanks}
-                  onChange={(e) => setShowBanks(e.target.checked)}
-                  style={{ marginRight: '6px' }}
-                />
-                Show Banks
-              </label>
-            </Box>
-          )}
           <Button
             variant="contained"
             size="small"

@@ -24,8 +24,7 @@ function RightColumn({ filters, refreshKey }) {
   const showAsk = viewMode === 'ask';
   const showDistricts = viewMode === 'districts';
   const showPincodes = viewMode === 'pincodes';
-  // Sorting state for districts panel
-  const [districtSort, setDistrictSort] = React.useState('count');
+  
 
 
   const common = {
@@ -40,7 +39,7 @@ function RightColumn({ filters, refreshKey }) {
 
   // Prepare district names according to sorting selection
   const baseNames = districtPanel.districtNames || [];
-  const districtNames = districtSort === 'alpha' ? [...baseNames].sort((a, b) => a.localeCompare(b)) : baseNames;
+  const districtNames = baseNames;
 
   useEffect(() => {
     // Reset sort when district names change
@@ -111,28 +110,6 @@ function RightColumn({ filters, refreshKey }) {
                 lineHeight: '24px',
                 borderRadius: '6px'
               }}>×</button>
-            </Box>
-            {/* Sort row */}
-            <Box sx={{ padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '12px', color: theme.palette.text.secondary }}>Sort by:</span>
-              <select
-                value={districtSort}
-                onChange={(e) => setDistrictSort(e.target.value)}
-                style={{
-                  fontSize: '11.5px',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  border: `1px solid ${theme.palette.divider}`,
-                  outline: 'none',
-                  background: theme.palette.background.paper,
-                  color: theme.palette.text.primary,
-                  cursor: 'pointer',
-                  width: '100%'
-                }}
-              >
-                <option value="count">Pensioners Count</option>
-                <option value="alpha">Alphabetically</option>
-              </select>
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
               <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>District Name</span>

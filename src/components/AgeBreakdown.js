@@ -286,33 +286,6 @@ const AgeBreakdown = ({filters, refreshKey}) => {
               <Doughnut data={modalChartData} options={modalChartOptions} />
             </Box>
           </Box>
-
-          {/* Compact table */}
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontSize: '12px' }}>Age Group</TableCell>
-                <TableCell align="right" sx={{ fontSize: '12px' }}>Count</TableCell>
-                <TableCell align="right" sx={{ fontSize: '12px' }}>Percentage</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.keys(ageStats).forEach((item) => {
-                const percentage = total_count.current > 0 ? (ageStats[item] / total_count.current) * 100 : 0;
-                return (
-                  <TableRow key={item.ageGroup}>
-                    <TableCell sx={{ fontSize: '12px' }}>{item.ageGroup}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: '12px' }}>
-                      {total_count.current.toLocaleString('en-IN')}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontSize: '12px' }}>
-                      {percentage.toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
         </DialogContent>
       </Dialog>
     </>
