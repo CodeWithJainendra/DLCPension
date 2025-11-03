@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { CircularProgress } from '@mui/material';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useTheme } from '../contexts/ThemeContext';
+import { fetchWithCache } from '../utils/cache';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -30,16 +31,24 @@ const outerRingsPlugin = {
   },
 };
 
-const VerificationMethods = ({filters, refreshKey}) => {
+const VerificationMethods = ({ filters, refreshKey }) => {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const [chartData, setChartData] = useState({
+    iris: 0,
+    fingerprint: 0,
+    face: 0,
+    other: 0
+  });
   const { isDarkMode, theme } = useTheme();
 
-  const data = {
-    labels: ['IRIS', 'Fingerprint', 'Biometric'],
+  const donut_data = {
+    labels: ['Iris', 'Fingerprint', 'Face', 'Other'],
     datasets: [
       {
-        data: [33, 34, 33],
-        backgroundColor: ['#4caf50', '#2196f3', '#ff9800'],
+        data: [chartData.iris, chartData.fingerprint, chartData.face, chartData.other],
+        backgroundColor: ['#4caf50', '#2196f3', '#ff9800', '#9c27b0'],
         borderWidth: 0,
         hoverOffset: 2,
         spacing: 3,
@@ -47,6 +56,42 @@ const VerificationMethods = ({filters, refreshKey}) => {
       },
     ],
   };
+
+  const _makeAPICallOrFetchFromCache = async (endpoint, params, ttlMs = 5 * 60 * 1000) => {
+      const apiData = await fetchWithCache(endpoint, params, ttlMs);
+      return apiData;
+    };
+
+  const fetchVerificationStats = async () => {
+    setLoading(true);
+    try {
+      const response = await _makeAPICallOrFetchFromCache(
+        'http://localhost:9007/dlc-pension-data-api/api/dashboard/authentication-methods', 
+        { filters: filters }
+      );
+      const data = response["data"];
+
+      setChartData({
+        iris: data.iris || 0,
+        fingerprint: data.fingerprint || 0,
+        face: data.face || 0,
+        other: data.other || 0
+      });
+      setLoading(false);
+
+      // donut_data.datasets[0].data =  [chartData.iris, chartData.fingerprint, chartData.face, chartData.other];
+    } catch (err) {
+      console.error('Failed to fetch verification stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchVerificationStats();
+  }, [filters, refreshKey]);
+
 
   const options = {
     plugins: { legend: { display: false }, tooltip: { enabled: true } },
@@ -81,47 +126,61 @@ const VerificationMethods = ({filters, refreshKey}) => {
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '13px', fontFamily: 'Inter, Roboto, Arial, sans-serif', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px', color: theme.palette.text.primary }}>
-          AUTHENTICATION METHODS
+          DLC Verification Methods
         </Typography>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minHeight: 0 }}>
-          {/* Left list */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ width: '10px', height: '10px', backgroundColor: '#4caf50', borderRadius: '50%', marginRight: '8px' }} />
-                <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>IRIS</Typography>
+        {loading ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '100px' }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flex: 1, minHeight: 0 }}>
+            {/* Left list */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: '10px', height: '10px', backgroundColor: '#4caf50', borderRadius: '50%', marginRight: '8px' }} />
+                  <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Iris</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{chartData.iris}</Typography>
               </Box>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>0</Typography>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: '10px', height: '10px', backgroundColor: '#2196f3', borderRadius: '50%', marginRight: '8px' }} />
+                  <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Fingerprint</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{chartData.fingerprint}</Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: '10px', height: '10px', backgroundColor: '#ff9800', borderRadius: '50%', marginRight: '8px' }} />
+                  <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Face</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{chartData.face}</Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: '10px', height: '10px', backgroundColor: '#9c27b0', borderRadius: '50%', marginRight: '8px' }} />
+                  <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Other</Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>{chartData.other}</Typography>
+              </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ width: '10px', height: '10px', backgroundColor: '#2196f3', borderRadius: '50%', marginRight: '8px' }} />
-                <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Fingerprint</Typography>
-              </Box>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>0</Typography>
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '180px' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ width: '10px', height: '10px', backgroundColor: '#ff9800', borderRadius: '50%', marginRight: '8px' }} />
-                <Typography variant="body2" sx={{ fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>Biometric</Typography>
-              </Box>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', fontFamily: 'Inter, Roboto, Arial, sans-serif', color: theme.palette.text.primary }}>0</Typography>
+            {/* Right segmented donut chart */}
+            <Box sx={{ width: '72px', height: '72px', position: 'relative' }}>
+              <Doughnut data={donut_data} options={options} plugins={[outerRingsPlugin]} />
+              {/* <LockOutlinedIcon sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '16px', color: theme.palette.text.secondary }} /> */}
             </Box>
           </Box>
-
-          {/* Right segmented donut chart */}
-          <Box sx={{ width: '72px', height: '72px', position: 'relative' }}>
-            <Doughnut data={data} options={options} plugins={[outerRingsPlugin]} />
-            <LockOutlinedIcon sx={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', fontSize: '16px', color: theme.palette.text.secondary }} />
-          </Box>
-        </Box>
+        )}
       </Paper>
 
       {/* Modal */}
-      <Dialog
+      {/* <Dialog
         open={open}
         onClose={() => setOpen(false)}
         fullWidth
@@ -139,7 +198,7 @@ const VerificationMethods = ({filters, refreshKey}) => {
             Future data and charts can be shown here.
           </Typography>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </>
   );
 }
