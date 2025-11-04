@@ -40,7 +40,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   const [viewLevel, setViewLevel] = useState('country'); // 'country' | 'state'
   const [selectedStateName, setSelectedStateName] = useState(null);
   const mapRef = useRef(null);
-  const [showAllLegend, setShowAllLegend] = useState(false);
   const [isPincodeDataLoaded, setIsPincodeDataLoaded] = useState(false);
   const [geoDataLoading, setGeoDataLoading] = useState(false);
   const [geoStatsLoading, setGeoStatsLoading] = useState(false);
@@ -113,55 +112,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   }, []);
 
 
-  /*
-  useEffect(() => {
-    setGeoDataLoading(true);
-  
-    const ttlMs = 20 * 60 * 1000; // cache 5 minutes
-  
-    const loadStates = fetchFileWithCache(indiaStatesUrl, {}, ttlMs)
-      .then((data) => {
-        setStatesData(data);
-        setGeoData(data); // initial visible layer
-        console.log('[Map] Loaded INDIA_STATES.geojson with', data.features?.length || 0, 'features');
-        setTimeout(() => {
-          const map = mapRef.current;
-          if (map) {
-            map.setView([22.9734, 78.6569], 4);
-            map.invalidateSize();
-          }
-        }, 0);
-      })
-      .catch((err) => {
-        console.error('Failed to load INDIA_STATES.geojson', err);
-      });
-  
-    const loadDistricts = fetchFileWithCache(indiaDistrictsUrl, {}, ttlMs)
-      .then((data) => {
-        setDistrictsData(data);
-        console.log('[Map] Loaded INDIA_DISTRICTS.geojson with', data.features?.length || 0, 'features');
-      })
-      .catch((err) => {
-        console.error('Failed to load INDIA_DISTRICTS.geojson', err);
-      });
-  
-    const loadPincodes = fetchFileWithCache(indiaPincodesUrl, {}, ttlMs)
-      .then((data) => {
-        setPincodesData(data);
-        setIsPincodeDataLoaded(true);
-        console.log('[Map] Loaded INDIAN_PINCODE_BOUNDARY.geojson with', data.features?.length || 0, 'features');
-      })
-      .catch((err) => {
-        console.error('Failed to load INDIAN_PINCODE_BOUNDARY.geojson', err);
-        setIsPincodeDataLoaded(false);
-      });
-  
-    Promise.allSettled([loadStates, loadDistricts, loadPincodes]).finally(() => {
-      setGeoDataLoading(false);
-    });
-  }, []);
-  */
-
   useEffect(() => {
     const handleResize = () => {
       const map = mapRef.current;
@@ -195,7 +145,33 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     }
   }, [viewLevel, viewMode, selectedStateName, geoData]);
 
+  
+  // Country-level geoStats
+useEffect(() => {
+  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+  if (viewLevel === 'country') {
+    fetchGeoStats('country', null, filters);
+  }
+}, [viewLevel, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
 
+// State-level geoStats
+useEffect(() => {
+  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+  if (viewLevel === 'state' && selectedStateName) {
+    fetchGeoStats('state', selectedStateName, filters);
+  }
+}, [viewLevel, selectedStateName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
+
+// District-level geoStats
+useEffect(() => {
+  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+  if (viewLevel === 'district' && districtPanel?.selectedDistrictName) {
+    fetchGeoStats('district', districtPanel.selectedDistrictName, filters);
+  }
+}, [viewLevel, districtPanel?.selectedDistrictName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
+
+
+  /*
   useEffect(() => {
     if (!statesData || !districtsData || !isPincodeDataLoaded) return;
     const featureName = viewLevel === 'state' ? selectedStateName
@@ -205,20 +181,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   }, [statesData, districtsData, isPincodeDataLoaded, filters, refreshKey, viewMode, viewLevel,
     selectedStateName, districtPanel?.selectedDistrictName]);
 
-
-  const stateStyle = {
-    color: '#2e3a4d',
-    weight: 2,
-    fillColor: '#eef2f7',
-    fillOpacity: 0.9,
-  };
-
-  const districtStyle = {
-    color: '#455a64',
-    weight: 2.5,
-    fillColor: '#f7fafc',
-    fillOpacity: 0.8,
-  };
+    */
 
   const getStateName = (feature) => {
     const props = feature?.properties || {};
@@ -331,6 +294,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   const openStateView = (stateName) => {
     if (!stateName) return;
     setViewLevel('state');
+    filters.district = null;
     const key = DISTRICT_FILE_MAP[normalize(stateName)];
     const map = mapRef.current;
 
@@ -398,7 +362,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
           .openTooltip(e.latlng);
       },
       mouseout: () => {
-        layer.setStyle(stateStyle);
+        layer.setStyle(getFeatureStyle(feature, geoStats, filters, bottom20, top20));
         layer.closeTooltip();
       },
       click: () => {
@@ -508,6 +472,8 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     if (statesData) {
       setGeoData(statesData);
       setViewLevel('country');
+      filters.state = null;
+      filters.district = null;
       setSelectedStateName(null);
       setViewMode('analytics');
       setDistrictPanel({ stateName: null, districtNames: [], selectedDistrictName: null });
@@ -527,19 +493,6 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     }
   };
 
-  const baseLegend = [
-    { label: '400K+', color: '#0d47a1' },
-    { label: '300K - 400K', color: '#1565c0' },
-    { label: '200K - 300K', color: '#1e88e5' },
-    { label: '150K - 200K', color: '#2979ff' },
-    { label: '100K - 150K', color: '#42a5f5' },
-  ];
-  const extraLegend = [
-    { label: '50K - 100K', color: '#64b5f6' },
-    { label: '10K - 50K', color: '#90caf9' },
-    { label: '1 - 10K', color: '#bbdefb' },
-    { label: 'No Data (0)', color: '#e0e0e0' },
-  ];
 
 
   const buildHoverTooltip = (title, stats = {}) => {
@@ -555,6 +508,76 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   `;
   };
 
+const interpolateBlue = (t) => {
+  t = Math.max(0, Math.min(1, t)); // clamp between 0 and 1
+  const h = 210;                  // hue (blue)
+  const s = 70 + 15 * t;          // saturation: 70–85%
+  const l = 95 - 35 * t;          // lightness: 95–60%
+  return `hsl(${h}, ${s}%, ${l}%)`;
+};
+
+const getColorForPensioners = (count, min, max) => {
+  if (count == null || isNaN(count)) return '#f0f0f0';
+  const range = max - min || 1;
+  const normalized = Math.max(0, Math.min(1, (count - min) / range));
+  return interpolateBlue(normalized);
+};
+
+
+// --- Decide which field to use for coloring based on filters.data_status ---
+const getColorByField = (filters) => {
+  const val = filters?.data_status?.toLowerCase?.() || '';
+  return val === 'dlc done' ? 'dlc_done'
+    : val === 'dlc pending' ? 'dlc_pending'
+      : val === 'conversion potential' ? 'conversion_potential'
+        : 'total_pensioners';
+}
+
+const colorByFieldKey = getColorByField(filters);
+const pensionerValues = geoStats?.map(g => g[colorByFieldKey] || 0).filter(n => n > 0) || [];
+const sortedValues = [...pensionerValues].sort((a, b) => a - b);
+const bottom20 = sortedValues[Math.floor(sortedValues.length * 0.2)] || 0;
+const top20 = sortedValues[Math.floor(sortedValues.length * 0.8)] || 1;
+
+// Build dynamic legend scale (same for all views)
+const legendSteps = 6;
+const step = (top20 - bottom20) / legendSteps || 1;
+const dynamicLegend = Array.from({ length: legendSteps }, (_, i) => {
+  const min = Math.round(bottom20 + i * step);
+  const max = Math.round(bottom20 + (i + 1) * step);
+  return {
+    label: `${min.toLocaleString()} – ${max.toLocaleString()}`,
+    color: getColorForPensioners(min + step / 2, bottom20, top20)
+  };
+}).reverse(); // darker at top
+
+
+
+// --- Unified map coloring helper ---
+const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
+  const metricField = getColorByField(filters);
+
+  // Decide the feature name key depending on layer type
+  const props = feature?.properties || {};
+  let name = '';
+  if (props.Pincode) {
+    name = String(props.Pincode).trim();
+  } else if (props.DISTNAME || props.DISTRICT || props.DIST_NAME) {
+    name = getDistrictName(props);
+  } else {
+    name = getStateName(feature);
+  }
+
+  const stats = geoStats?.find((gs) => gs.name === name);
+  const count = stats?.[metricField] || 0;
+
+  return {
+    color: '#455a64',
+    weight: 1,
+    fillColor: getColorForPensioners(count, bottom20, top20),
+    fillOpacity: 0.95,
+  };
+};
 
   return (
     <Paper
@@ -640,10 +663,10 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
               padding: '2px 8px',
               fontSize: '11px'
             }}>
-              Loading districts…
+              Loading...
             </Box>
           )}
-          {viewLevel === 'state' && (
+          {(viewLevel === 'state'  || viewLevel === 'district') && (
             <Box
               onClick={() => openStateView(selectedStateName)}
               sx={{
@@ -657,7 +680,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
                 userSelect: 'none',
               }}
             >
-              › {selectedStateName}
+              › {filters.stateName || selectedStateName}
             </Box>
           )}
           {viewMode === 'pincodes' && districtPanel.selectedDistrictName && (
@@ -714,7 +737,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
               <GeoJSON
                 key={`${viewLevel}-${selectedStateName || 'country'}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
                 data={geoData}
-                style={viewLevel === 'state' ? districtStyle : stateStyle}
+                style={(feature) => getFeatureStyle(feature, geoStats, filters, bottom20, top20)}
                 onEachFeature={viewLevel === 'state' ? onEachDistrictFeature : onEachStateFeature}
               />
             )}
@@ -725,7 +748,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
               <GeoJSON
                 key={`${viewMode}-${districtPanel.selectedDistrictName || 'none'}-${geoStatsLoading}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
                 data={pincodesInDistrict}
-                style={districtStyle} // ✅ same style as district/state polygons
+                style={(feature) => getFeatureStyle(feature, geoStats, filters, bottom20, top20)}
                 onEachFeature={onEachPincodeFeature} // ✅ same tooltip/hover logic
               />
             )}
@@ -738,78 +761,96 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
           </Box>
         )}
 
-        {/* Floating bottom-left legend */}
+{viewLevel && (
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    {dynamicLegend.map((item) => (
+      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
         <Box
           sx={{
-            position: 'absolute',
-            left: '8px',
-            bottom: '8px',
-            backgroundColor: theme.palette.background.paper,
-            border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-            borderRadius: '8px',
-            boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
-            padding: '8px 10px',
+            width: 10,
+            height: 10,
+            backgroundColor: item.color,
+            marginRight: '6px',
+            borderRadius: '3px',
           }}
+        />
+        <Typography variant="body2" sx={{ fontSize: '11px', color: theme.palette.text.primary }}>
+          {item.label}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+)}
+
+<Box
+  sx={{
+    position: 'absolute',
+    left: '8px',
+    bottom: '8px',
+    backgroundColor: theme.palette.background.paper,
+    border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
+    borderRadius: '8px',
+    boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
+    padding: '8px 10px',
+    minWidth: '160px',
+  }}
+>
+  {/* Legend Title */}
+  <Typography
+    variant="subtitle2"
+    sx={{
+      color: theme.palette.text.primary,
+      fontWeight: 600,
+      display: 'block',
+      marginBottom: '4px',
+      fontSize: '12px',
+    }}
+  >
+    {(() => {
+      const type = (filters?.data_status || '').toLowerCase();
+      if (type === 'dlc done') return 'DLC Done';
+      if (type === 'dlc pending') return 'DLC Pending';
+      if (type === 'conversion potential') return 'Conversion Potential';
+      return 'Total Pensioners';
+    })()}
+  </Typography>
+
+  {/* Legend Color Steps */}
+  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    {dynamicLegend.map((item) => (
+      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            backgroundColor: item.color,
+            marginRight: '6px',
+            borderRadius: '3px',
+          }}
+        />
+        <Typography
+          variant="body2"
+          sx={{ fontSize: '11px', color: theme.palette.text.primary }}
         >
-          <Typography
-            variant="subtitle2"
-            sx={{
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              display: 'block',
-              marginBottom: '6px',
-              fontSize: '12px',
-            }}
-          >
-            {viewMode === 'pincodes' ? 'Pincode Areas' : (viewLevel === 'state' ? 'Pensioners Count (Districts)' : 'Pensioners Count (States)')}
-          </Typography>
-          {viewMode !== 'pincodes' && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {baseLegend.map((item) => (
-                <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Box
-                    sx={{
-                      width: '10px',
-                      height: '10px',
-                      backgroundColor: item.color,
-                      marginRight: '6px',
-                      borderRadius: '3px',
-                    }}
-                  />
-                  <Typography variant="body2" sx={{ fontSize: '11px', color: theme.palette.text.primary }}>
-                    {item.label}
-                  </Typography>
-                </Box>
-              ))}
-              {showAllLegend &&
-                extraLegend.map((item) => (
-                  <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Box
-                      sx={{
-                        width: '10px',
-                        height: '10px',
-                        backgroundColor: item.color,
-                        marginRight: '6px',
-                        borderRadius: '3px',
-                      }}
-                    />
-                    <Typography variant="body2" sx={{ fontSize: '11px', color: theme.palette.text.primary }}>
-                      {item.label}
-                    </Typography>
-                  </Box>
-                ))}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2px' }}>
-                <Button
-                  onClick={() => setShowAllLegend((s) => !s)}
-                  size="small"
-                  sx={{ textTransform: 'none', fontSize: '11px', color: isDarkMode ? '#3A86FF' : '#1e88e5', padding: 0, minWidth: 0 }}
-                >
-                  {showAllLegend ? '▼ Less' : '▲ More'}
-                </Button>
-              </Box>
-            </Box>
-          )}
-        </Box>
+          {item.label}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+
+  {/* Numeric Range Info */}
+  <Typography
+    sx={{
+      fontSize: '10px',
+      opacity: 0.6,
+      marginTop: '4px',
+      color: theme.palette.text.secondary,
+    }}
+  >
+    Range: {Math.round(bottom20).toLocaleString()} –{' '}
+    {Math.round(top20).toLocaleString()}
+  </Typography>
+</Box>
 
 
         {/* Districts panel moved to RightColumn; nothing renders inside the map container now. */}
