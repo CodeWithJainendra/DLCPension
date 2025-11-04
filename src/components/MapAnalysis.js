@@ -331,7 +331,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   const onEachStateFeature = (feature, layer) => {
     const stateName = getStateName(feature);
-    const stats = geoStats.find(gs => gs.State === stateName) || {};
+    const stats = geoStats.find(gs => gs.name === stateName) || {};
     layer.on({
       mouseover: (e) => {
         layer.setStyle({ weight: 3, fillOpacity: 1 });
@@ -359,7 +359,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   const onEachDistrictFeature = (feature, layer) => {
     const districtName = getDistrictName(feature?.properties || {});
-    const stats = geoStats.find(gs => gs.District === districtName) || {};
+    const stats = geoStats.find(gs => gs.name === districtName) || {};
     layer.on({
       mouseover: (e) => {
         const content = buildHoverTooltip(districtName, stats);
@@ -426,7 +426,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   // Pincode feature hover: show tooltip with pincode number
   const onEachPincodeFeature = (feature, layer) => {
     const pin = String(feature?.properties?.Pincode || '').trim();
-    const stats = geoStats.find(gs => gs.Pincode === pin) || {};
+    const stats = geoStats.find(gs => gs.name === pin) || {};
     layer.on({
       mouseover: (e) => {
         const content = buildHoverTooltip(pin + " " + (feature.properties?.Office_Name || ''), stats);
