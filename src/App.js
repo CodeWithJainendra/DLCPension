@@ -25,8 +25,6 @@ function RightColumn({ filters, refreshKey }) {
   const showDistricts = viewMode === 'districts';
   const showPincodes = viewMode === 'pincodes';
   
-
-
   const common = {
     position: 'absolute',
     top: 0,
@@ -262,20 +260,14 @@ function AppContent() {
     setIsLoading(true);   // start loading
     setShowFilter(false);
     setRefreshKey(prev => prev + 1);  // increment to signal children
-
-    // Simulate async refresh; in real use, fetch new data or trigger reload
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
   };
 
-  const handleRefreshData = () => {
-    
-  };
-
-  useEffect(() => {
-    handleRefreshData();
-  }, [refreshKey]);
+  const updateFilterViaMapContextHandler = (updatedFilters) => {
+    console.log("Updating filters via map context:", updatedFilters);
+    setFilters(prev => ({ ...prev, ...updatedFilters }));
+    // setIsLoading(true);
+    setRefreshKey(prev => prev + 1);
+  }
 
   return (
     <Box sx={{ backgroundColor: isDarkMode ? theme.palette.background.default : '#f5f7fa', minHeight: '100vh' }}>
@@ -302,7 +294,8 @@ function AppContent() {
             <MapAnalysis
               onOpenFilter={handleOpenFilter}
               filters={filters}
-              refreshKey={refreshKey} />
+              refreshKey={refreshKey}
+              onUpdateFilterViaMapContext = {updateFilterViaMapContextHandler} />
 
             <FilterComponent
               open={showFilter}

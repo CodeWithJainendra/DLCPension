@@ -8,7 +8,7 @@ import indiaPincodesUrl from '../IndiaMap/INDIAN_PINCODE_BOUNDARY.geojson';
 import { useTheme } from '../contexts/ThemeContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import L from 'leaflet';
-import { fetchWithCache } from '../utils/cache';
+import { fetchFileWithCache, fetchWithCache } from '../utils/cache';
 
 // Known Indian states/UTs to help detect names from various schemas
 const KNOWN_STATES = [
@@ -26,7 +26,7 @@ function SetMapRef({ mapRef }) {
   return null;
 }
 
-const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
+const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapContext }) => {
 
   const geoStatsUrl = 'http://localhost:9007/dlc-pension-data-api/api/geo-stats';
   const { isDarkMode, theme } = useTheme();
@@ -41,83 +41,126 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   const [selectedStateName, setSelectedStateName] = useState(null);
   const mapRef = useRef(null);
   const [showAllLegend, setShowAllLegend] = useState(false);
-  const [showBanks, setShowBanks] = useState(false);
   const [isPincodeDataLoaded, setIsPincodeDataLoaded] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [geoDataLoading, setGeoDataLoading] = useState(false);
+  const [geoStatsLoading, setGeoStatsLoading] = useState(false);
 
 
   const _makeAPICallOrFetchFromCache = async (endpoint, params, ttlMs = 5 * 60 * 1000) => {
-      const apiData = await fetchWithCache(endpoint, params, ttlMs);
-      const featureStats = apiData["data"];
-      return featureStats;
-    };
+    const apiData = await fetchWithCache(endpoint, params, ttlMs);
+    const featureStats = apiData["data"];
+    return featureStats;
+  };
 
   const fetchGeoStats = async (level, name, filters) => {
-  try {
-    setLoading(true);
-    console.log('[geo-stats] fetching for', level, name, filters);
-    const params = {level: level, name:name, filters:filters};
-    const data = await _makeAPICallOrFetchFromCache(geoStatsUrl, params, 5 * 60 * 1000);
-    console.log('[geo-stats] fetched data:', data);
-    setGeoStats(data.geoStats || []);
-    setLoading(false);
-  } catch (err) {
-    console.error('[geo-stats] failed:', err);
-    return null;
-  }
-  finally {  
-    setLoading(false);  
-  }
-};
+    try {
+      setGeoStatsLoading(true);
+      console.log('[geo-stats] fetching for', level, name, filters);
+      const params = { level, name, filters };
+      const data = await _makeAPICallOrFetchFromCache(geoStatsUrl, params, 5 * 60 * 1000);
+      console.log('[geo-stats] fetched data:', data);
+      setGeoStats(Array.isArray(data) ? data : data.geoStats || []);
+      setGeoStatsLoading(false);
+    } catch (err) {
+      console.error('[geo-stats] failed:', err);
+      setGeoStats([]);
+      setGeoStatsLoading(false);
+    }
+  };
 
 
   useEffect(() => {
-    console.log("Need to fetch data for:", viewMode, viewLevel, selectedStateName, districtPanel);
-    console.log("need to also refresh the data:", filters, refreshKey);
-    const featureName = viewLevel === 'state' ? selectedStateName 
-                  : viewLevel ===  'district'? districtPanel.selectedDistrictName 
-                  : null
-    fetchGeoStats(viewLevel, featureName , filters);
-  }, [filters, refreshKey, viewMode]);
+    setGeoDataLoading(true);
 
-  useEffect(() => {
-    // Load states
-    fetch(indiaStatesUrl)
+    const loadStates = fetch(indiaStatesUrl)
       .then((res) => res.json())
       .then((data) => {
         setStatesData(data);
-        setGeoData(data);
+        setGeoData(data); // initial visible layer
+        console.log('[Map] Loaded INDIA_STATES.geojson with', data.features?.length || 0, 'features');
         setTimeout(() => {
           const map = mapRef.current;
-          if (!map) return;
-          map.setView([22.9734, 78.6569], 4);
-          map.invalidateSize();
+          if (map) {
+            map.setView([22.9734, 78.6569], 4);
+            map.invalidateSize();
+          }
+        }, 0);
+      });
+
+    const loadDistricts = fetch(indiaDistrictsUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setDistrictsData(data);
+        console.log('[Map] Loaded INDIA_DISTRICTS.geojson with', data.features?.length || 0, 'features');
+      });
+
+    const loadPincodes = fetch(indiaPincodesUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setPincodesData(data);
+        setIsPincodeDataLoaded(true);
+        console.log('[Map] Loaded INDIAN_PINCODE_BOUNDARY.geojson with', data.features?.length || 0, 'features');
+      })
+      .catch((err) => {
+        console.error('Failed to load INDIAN_PINCODE_BOUNDARY.geojson', err);
+        setIsPincodeDataLoaded(false);
+      });
+
+    Promise.allSettled([loadStates, loadDistricts, loadPincodes])
+      .finally(() => {
+        setGeoDataLoading(false);
+      });
+  }, []);
+
+
+  /*
+  useEffect(() => {
+    setGeoDataLoading(true);
+  
+    const ttlMs = 20 * 60 * 1000; // cache 5 minutes
+  
+    const loadStates = fetchFileWithCache(indiaStatesUrl, {}, ttlMs)
+      .then((data) => {
+        setStatesData(data);
+        setGeoData(data); // initial visible layer
+        console.log('[Map] Loaded INDIA_STATES.geojson with', data.features?.length || 0, 'features');
+        setTimeout(() => {
+          const map = mapRef.current;
+          if (map) {
+            map.setView([22.9734, 78.6569], 4);
+            map.invalidateSize();
+          }
         }, 0);
       })
       .catch((err) => {
         console.error('Failed to load INDIA_STATES.geojson', err);
       });
-
-    // Load districts
-    fetch(indiaDistrictsUrl)
-      .then((res) => res.json())
+  
+    const loadDistricts = fetchFileWithCache(indiaDistrictsUrl, {}, ttlMs)
       .then((data) => {
         setDistrictsData(data);
+        console.log('[Map] Loaded INDIA_DISTRICTS.geojson with', data.features?.length || 0, 'features');
       })
       .catch((err) => {
+        console.error('Failed to load INDIA_DISTRICTS.geojson', err);
       });
-
-    // Load pincodes (heavy)
-    fetch(indiaPincodesUrl)
-      .then((res) => res.json())
+  
+    const loadPincodes = fetchFileWithCache(indiaPincodesUrl, {}, ttlMs)
       .then((data) => {
         setPincodesData(data);
         setIsPincodeDataLoaded(true);
+        console.log('[Map] Loaded INDIAN_PINCODE_BOUNDARY.geojson with', data.features?.length || 0, 'features');
       })
       .catch((err) => {
+        console.error('Failed to load INDIAN_PINCODE_BOUNDARY.geojson', err);
         setIsPincodeDataLoaded(false);
       });
+  
+    Promise.allSettled([loadStates, loadDistricts, loadPincodes]).finally(() => {
+      setGeoDataLoading(false);
+    });
   }, []);
+  */
 
   useEffect(() => {
     const handleResize = () => {
@@ -139,8 +182,8 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
           const bounds = layer.getBounds();
           map.invalidateSize();
           setTimeout(() => {
-            fitBoundsSmart(map, bounds, { padding: [30, 30], maxZoom: 9, duration: 0.9 });
-          }, 50);
+            fitBoundsSmart(map, bounds, { padding: [40, 40], maxZoom: 9, duration: 1 });
+          }, 100);
         } catch { }
       }
     } else if (viewLevel === 'country' && viewMode !== 'pincodes') {
@@ -151,6 +194,17 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
       }
     }
   }, [viewLevel, viewMode, selectedStateName, geoData]);
+
+
+  useEffect(() => {
+    if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+    const featureName = viewLevel === 'state' ? selectedStateName
+      : viewLevel === 'district' ? districtPanel.selectedDistrictName
+        : null
+    fetchGeoStats(viewLevel, featureName, filters);
+  }, [statesData, districtsData, isPincodeDataLoaded, filters, refreshKey, viewMode, viewLevel,
+    selectedStateName, districtPanel?.selectedDistrictName]);
+
 
   const stateStyle = {
     color: '#2e3a4d',
@@ -275,14 +329,13 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   // Reusable: open a state's districts view by name
   const openStateView = (stateName) => {
-    console.log('[Map] Opening state view for:', stateName);
     if (!stateName) return;
+    setViewLevel('state');
     const key = DISTRICT_FILE_MAP[normalize(stateName)];
     const map = mapRef.current;
 
     const applyDistricts = (data) => {
       setGeoData(data);
-      setViewLevel('state');
       const districtNames = (data.features || []).map((f) => getDistrictName(f.properties || {}));
       setViewMode('districts');
       setDistrictPanel({ stateName, districtNames, selectedDistrictName: null });
@@ -301,9 +354,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
     if (key) {
       try {
-        console.log("Fetching districts context: ", key);
         const url = districtsContext(key);
-        console.log("fetching per-state districts from", url);
         fetch(url)
           .then((res) => res.json())
           .then((data) => {
@@ -330,6 +381,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   };
 
   const onEachStateFeature = (feature, layer) => {
+    if (!geoStats || !Array.isArray(geoStats) || geoStats.length === 0) return;
     const stateName = getStateName(feature);
     const stats = geoStats.find(gs => gs.name === stateName) || {};
     layer.on({
@@ -350,18 +402,22 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
         layer.closeTooltip();
       },
       click: () => {
+        setViewLevel('district');
         setSelectedStateName(stateName);
-        filters.state = stateName;
+        onUpdateFilterViaMapContext({ state: stateName, district: null });
         openStateView(stateName);
       },
     });
   };
 
   const onEachDistrictFeature = (feature, layer) => {
+    if (!geoStats || !Array.isArray(geoStats) || geoStats.length === 0) return;
+
     const districtName = getDistrictName(feature?.properties || {});
     const stats = geoStats.find(gs => gs.name === districtName) || {};
     layer.on({
       mouseover: (e) => {
+
         const content = buildHoverTooltip(districtName, stats);
         layer
           .bindTooltip(content, {
@@ -378,8 +434,9 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
       click: () => {
         // When a district is clicked, compute pincodes within it
         try {
+          setViewLevel('district');
           if (!pincodesData) return;
-          filters.district = districtName;
+          onUpdateFilterViaMapContext({ district: districtName });
           const distLayer = L.geoJSON(feature);
           const distBounds = distLayer.getBounds();
           let filtered = (pincodesData.features || []).filter((pf) => {
@@ -425,6 +482,8 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
 
   // Pincode feature hover: show tooltip with pincode number
   const onEachPincodeFeature = (feature, layer) => {
+    if (!geoStats || !Array.isArray(geoStats) || geoStats.length === 0) return;
+
     const pin = String(feature?.properties?.Pincode || '').trim();
     const stats = geoStats.find(gs => gs.name === pin) || {};
     layer.on({
@@ -483,17 +542,19 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
   ];
 
 
-  const buildHoverTooltip = (title, stats) => {
-  return `
+  const buildHoverTooltip = (title, stats = {}) => {
+    const { total_pensioners = '-', dlc_done = '-', dlc_pending = '-', conversion_potential = '-' } = stats;
+    return `
     <div class="state-hover-card">
       <div class="state-card-title">${title}</div>
-      <div class="state-card-total-pensioner">Total: ${stats.total_pensioners}</div>
-      <div class="state-card-lc-done-pensioner">LC done: ${stats.dlc_done}</div>
-      <div class="state-card-pending-pensioner">Pending: ${stats.dlc_pending}</div>
-      <div class="state-card-pending-last-manual-pensioner">Conversion potential: ${stats.conversion_potential}</div>
+      <div class="state-card-total-pensioner">Total: ${total_pensioners}</div>
+      <div class="state-card-lc-done-pensioner">LC done: ${dlc_done}</div>
+      <div class="state-card-pending-pensioner">Pending: ${dlc_pending}</div>
+      <div class="state-card-pending-last-manual-pensioner">Conversion potential: ${conversion_potential}</div>
     </div>
   `;
-};
+  };
+
 
   return (
     <Paper
@@ -613,37 +674,69 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey }) => {
           )}
         </Box>
 
-        <MapContainer
-          center={[22.9734, 78.6569]}
-          zoom={4}
-          minZoom={3}
-          maxZoom={18}
-          zoomControl={false}
-          attributionControl={false}
-          style={{ height: '100%', width: '100%' }}
-          className={viewMode === 'pincodes' ? 'pincode-view' : (viewLevel === 'state' ? 'district-view' : '')}
-        >
-          <SetMapRef mapRef={mapRef} />
-          {geoData && viewMode !== 'pincodes' && (
-            <GeoJSON
-              key={viewLevel === 'state' ? `dist-${selectedStateName || 'unknown'}` : 'states'}
-              data={geoData}
-              style={viewLevel === 'state' ? districtStyle : stateStyle}
-              onEachFeature={viewLevel === 'state' ? onEachDistrictFeature : onEachStateFeature}
-            />
-          )}
-          {/* Pincode overlay when a district is selected */}
-          {viewMode === 'pincodes' && pincodesInDistrict && (
-            <GeoJSON
-              key={`pincodes-${districtPanel.selectedDistrictName || 'none'}`}
-              data={pincodesInDistrict}
-              style={districtStyle} // ✅ same style as district/state polygons
-              onEachFeature={onEachPincodeFeature} // ✅ same tooltip/hover logic
-            />
-          )}
+        {(geoDataLoading || geoStatsLoading) && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255,255,255,0.6)',
+              zIndex: 2000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography variant="body2" sx={{ color: '#1976d2' }}>
+              Loading map data...
+            </Typography>
+          </Box>
+        )}
 
-          <ZoomControl position="topright" />
-        </MapContainer>
+
+        {((viewLevel === 'country' && statesData) ||
+          (viewLevel === 'state' && districtsData) ||
+          (viewLevel === 'district' && isPincodeDataLoaded)) ? (
+          <MapContainer
+            center={[22.9734, 78.6569]}
+            zoom={4}
+            minZoom={3}
+            maxZoom={18}
+            zoomControl={false}
+            attributionControl={false}
+            style={{ height: '100%', width: '100%' }}
+            className={viewMode === 'pincodes' ? 'pincode-view' : (viewLevel === 'state' ? 'district-view' : '')}
+          >
+            <SetMapRef mapRef={mapRef} />
+            {geoData && geoStats && geoStats.length > 0 && viewMode !== 'pincodes' && (
+              <GeoJSON
+                key={`${viewLevel}-${selectedStateName || 'country'}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
+                data={geoData}
+                style={viewLevel === 'state' ? districtStyle : stateStyle}
+                onEachFeature={viewLevel === 'state' ? onEachDistrictFeature : onEachStateFeature}
+              />
+            )}
+            {/* Pincode overlay when a district is selected */}
+            {/*${geoStatsLoading}-- down below, this is a hack to stop the problem of geoStats and geoData being
+            asynchronously loading, and the api data not being bound for the tooltips on the layer.*/}
+            {viewMode === 'pincodes' && pincodesInDistrict && geoStats && geoStats.length > 0 && (
+              <GeoJSON
+                key={`${viewMode}-${districtPanel.selectedDistrictName || 'none'}-${geoStatsLoading}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
+                data={pincodesInDistrict}
+                style={districtStyle} // ✅ same style as district/state polygons
+                onEachFeature={onEachPincodeFeature} // ✅ same tooltip/hover logic
+              />
+            )}
+
+            <ZoomControl position="topright" />
+          </MapContainer>
+        ) : (
+          <Box sx={{ textAlign: 'center', marginTop: '100px', color: '#666' }}>
+            Loading map files…
+          </Box>
+        )}
 
         {/* Floating bottom-left legend */}
         <Box

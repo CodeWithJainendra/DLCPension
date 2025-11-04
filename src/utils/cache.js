@@ -216,13 +216,6 @@ setInterval(() => {
 
 export default cacheManager;
 
-/**
- * Helper function to fetch with cache
- * @param {string} url - API URL
- * @param {object} params - Fetch options
- * @param {number} cacheTTL - Cache TTL in milliseconds (default: 5 minutes)
- * @returns {Promise} - API response
- */
 export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000) => {
   console.log("Fetch with cache called for URL:", url, "with params:", params);
   const cacheKey = cacheManager.generateKey(url, params);
@@ -282,6 +275,42 @@ export const fetchWithCache = async (url, params = {}, cacheTTL = 5 * 60 * 1000)
   })();
 
   // Register pending promise and return it
+  cacheManager.setPending(cacheKey, requestPromise);
+  return requestPromise;
+};
+
+export const fetchFileWithCache = async (url, cacheTTL = 24 * 60 * 60 * 1000) => {
+  console.log("Fetch file with cache called for:", url);
+  const cacheKey = cacheManager.generateKey(url, {}); // no params for static files
+
+  // If there's an in-flight request, reuse its promise
+  const pending = cacheManager.getPending(cacheKey);
+  if (pending) return pending;
+
+  // Try cache first
+  const cachedData = cacheManager.get(cacheKey);
+  if (cachedData !== null) {
+    console.log(`📦 Loaded static file from cache: ${url}`);
+    return cachedData;
+  }
+
+  console.log(`📁 Fetching static file: ${url}`);
+
+  const requestPromise = (async () => {
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      const data = await response.json();
+
+      // Store in cache with longer TTL
+      cacheManager.set(cacheKey, data, cacheTTL);
+      return data;
+    } finally {
+      cacheManager.clearPending(cacheKey);
+    }
+  })();
+
+  // Track pending request
   cacheManager.setPending(cacheKey, requestPromise);
   return requestPromise;
 };
