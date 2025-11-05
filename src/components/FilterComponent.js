@@ -16,6 +16,8 @@ import {
   Collapse,
   Stack,
   Paper,
+  Radio,
+  RadioGroup
 } from "@mui/material";
 
 const FilterComponent = ({
@@ -39,7 +41,7 @@ const FilterComponent = ({
         "Railway",
         "Defence",
         "Autonomous",
-        "EPFO", 
+        "EPFO",
         "Civil",
         "Others",
         "Postal",
@@ -113,8 +115,8 @@ const FilterComponent = ({
     },
     "data_status": {
       key: "data_status",
-      title: "Pensioner Categories",
-      options: ["All pensioners", "DLC Completed", "DLC Pending", "DLC Pending (PLC to DLC conversion)"],
+      title: "Analysis category",
+      options: ["All pensioners", "DLC Completed", "DLC Pending", "PLC to DLC conversion potential"],
     }
   };
 
@@ -190,25 +192,25 @@ const FilterComponent = ({
                   </Typography>
 
                   {/* Select All/Deselect All Checkbox */}
-                  {section.key !== "pensioner_types" && (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        size="small"
-                        checked={localFilters[section.key]?.length === section.options.length}
-                        indeterminate={
-                          localFilters[section.key]?.length > 0 &&
-                          localFilters[section.key]?.length < section.options.length
-                        }
-                        onChange={(e) => handleSelectAll(section.key, section.options, e.target.checked)}
-                      />
-                    }
-                    label={
-                      <Typography variant="body2">
-                        {localFilters[section.key]?.length === section.options.length ? "Deselect All" : "Select All"}
-                      </Typography>
-                    }
-                  />
+                  {section.key !== "pensioner_types" && section.key !== "data_status" && (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={localFilters[section.key]?.length === section.options.length}
+                          indeterminate={
+                            localFilters[section.key]?.length > 0 &&
+                            localFilters[section.key]?.length < section.options.length
+                          }
+                          onChange={(e) => handleSelectAll(section.key, section.options, e.target.checked)}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2">
+                          {localFilters[section.key]?.length === section.options.length ? "Deselect All" : "Select All"}
+                        </Typography>
+                      }
+                    />
                   )}
                 </Box>
 
@@ -339,9 +341,28 @@ const FilterComponent = ({
                     })}
                   </Box>
                 )}
+                {section.key === "data_status" && (
+                  <RadioGroup
+                    value={localFilters.data_status || ""}
+                    onChange={(e) =>
+                      setLocalFilters({ ...localFilters, data_status: e.target.value })
+                    }
+                  >
+                    <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={0.5}>
+                      {visibleOptions.map((option) => (
+                        <FormControlLabel
+                          key={option}
+                          value={option}
+                          control={<Radio size="small" />}
+                          label={<Typography variant="body2">{option}</Typography>}
+                        />
+                      ))}
+                    </Box>
+                  </RadioGroup>
+                )}
 
                 {/* Generic sections: Age Group, Pensioner Data */}
-                {["age_groups", "data_status"].includes(section.key) && (
+                {section.key === "age_groups" && (
                   <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={0.5}>
                     {visibleOptions.map((option) => (
                       <FormControlLabel

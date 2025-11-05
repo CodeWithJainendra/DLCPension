@@ -111,6 +111,26 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
       });
   }, []);
 
+  // Recolor and update legend dynamically when data_status changes
+  useEffect(() => {
+    if (!geoStats || geoStats.length === 0) return;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    console.log('[Map] Updating map colors based on data_status:', filters.data_status);
+
+    map.eachLayer((layer) => {
+      // Only recolor GeoJSON vector layers
+      if (layer.feature && layer.setStyle) {
+        const newStyle = getFeatureStyle(layer.feature, geoStats, filters, bottom20, top20);
+        layer.setStyle(newStyle);
+      }
+    });
+    // Optionally force a slight reflow
+    map.invalidateSize();
+  }, [filters.data_status, geoStats]);
+
 
   useEffect(() => {
     const handleResize = () => {
@@ -145,30 +165,30 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     }
   }, [viewLevel, viewMode, selectedStateName, geoData]);
 
-  
+
   // Country-level geoStats
-useEffect(() => {
-  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
-  if (viewLevel === 'country') {
-    fetchGeoStats('country', null, filters);
-  }
-}, [viewLevel, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
+  useEffect(() => {
+    if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+    if (viewLevel === 'country') {
+      fetchGeoStats('country', null, filters);
+    }
+  }, [viewLevel, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
 
-// State-level geoStats
-useEffect(() => {
-  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
-  if (viewLevel === 'state' && selectedStateName) {
-    fetchGeoStats('state', selectedStateName, filters);
-  }
-}, [viewLevel, selectedStateName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
+  // State-level geoStats
+  useEffect(() => {
+    if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+    if (viewLevel === 'state' && selectedStateName) {
+      fetchGeoStats('state', selectedStateName, filters);
+    }
+  }, [viewLevel, selectedStateName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
 
-// District-level geoStats
-useEffect(() => {
-  if (!statesData || !districtsData || !isPincodeDataLoaded) return;
-  if (viewLevel === 'district' && districtPanel?.selectedDistrictName) {
-    fetchGeoStats('district', districtPanel.selectedDistrictName, filters);
-  }
-}, [viewLevel, districtPanel?.selectedDistrictName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
+  // District-level geoStats
+  useEffect(() => {
+    if (!statesData || !districtsData || !isPincodeDataLoaded) return;
+    if (viewLevel === 'district' && districtPanel?.selectedDistrictName) {
+      fetchGeoStats('district', districtPanel.selectedDistrictName, filters);
+    }
+  }, [viewLevel, districtPanel?.selectedDistrictName, statesData, districtsData, isPincodeDataLoaded, filters, refreshKey]);
 
 
   /*
@@ -508,76 +528,99 @@ useEffect(() => {
   `;
   };
 
-const interpolateBlue = (t) => {
-  t = Math.max(0, Math.min(1, t)); // clamp between 0 and 1
-  const h = 210;                  // hue (blue)
-  const s = 70 + 15 * t;          // saturation: 70–85%
-  const l = 95 - 35 * t;          // lightness: 95–60%
-  return `hsl(${h}, ${s}%, ${l}%)`;
-};
-
-const getColorForPensioners = (count, min, max) => {
-  if (count == null || isNaN(count)) return '#f0f0f0';
-  const range = max - min || 1;
-  const normalized = Math.max(0, Math.min(1, (count - min) / range));
-  return interpolateBlue(normalized);
-};
-
-
-// --- Decide which field to use for coloring based on filters.data_status ---
-const getColorByField = (filters) => {
-  const val = filters?.data_status?.toLowerCase?.() || '';
-  return val === 'dlc done' ? 'dlc_done'
-    : val === 'dlc pending' ? 'dlc_pending'
-      : val === 'conversion potential' ? 'conversion_potential'
-        : 'total_pensioners';
-}
-
-const colorByFieldKey = getColorByField(filters);
-const pensionerValues = geoStats?.map(g => g[colorByFieldKey] || 0).filter(n => n > 0) || [];
-const sortedValues = [...pensionerValues].sort((a, b) => a - b);
-const bottom20 = sortedValues[Math.floor(sortedValues.length * 0.2)] || 0;
-const top20 = sortedValues[Math.floor(sortedValues.length * 0.8)] || 1;
-
-// Build dynamic legend scale (same for all views)
-const legendSteps = 6;
-const step = (top20 - bottom20) / legendSteps || 1;
-const dynamicLegend = Array.from({ length: legendSteps }, (_, i) => {
-  const min = Math.round(bottom20 + i * step);
-  const max = Math.round(bottom20 + (i + 1) * step);
-  return {
-    label: `${min.toLocaleString()} – ${max.toLocaleString()}`,
-    color: getColorForPensioners(min + step / 2, bottom20, top20)
+  const interpolateBlue = (t) => {
+    t = Math.max(0, Math.min(1, t)); // clamp between 0 and 1
+    const h = 210;                  // hue (blue)
+    const s = 70 + 15 * t;          // saturation: 70–85%
+    const l = 95 - 35 * t;          // lightness: 95–60%
+    return `hsl(${h}, ${s}%, ${l}%)`;
   };
-}).reverse(); // darker at top
+
+  const getColorForPensioners = (count, min, max) => {
+    if (count == null || isNaN(count)) return '#f0f0f0';
+    const range = max - min || 1;
+    const normalized = Math.max(0, Math.min(1, (count - min) / range));
+    return interpolateBlue(normalized);
+  };
 
 
-
-// --- Unified map coloring helper ---
-const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
-  const metricField = getColorByField(filters);
-
-  // Decide the feature name key depending on layer type
-  const props = feature?.properties || {};
-  let name = '';
-  if (props.Pincode) {
-    name = String(props.Pincode).trim();
-  } else if (props.DISTNAME || props.DISTRICT || props.DIST_NAME) {
-    name = getDistrictName(props);
-  } else {
-    name = getStateName(feature);
+  // --- Decide which field to use for coloring based on filters.data_status ---
+  const getColorByField = (filters) => {
+    const val = filters?.data_status?.toLowerCase?.() || '';
+    const coloring_field_key = val === 'all pensioners' ? 'total_pensioners'
+      : val === 'dlc completed' ? 'dlc_done'
+        : val === 'dlc pending' ? 'dlc_pending'
+          : val === 'plc to dlc conversion potential' ? 'conversion_potential'
+            : 'total_pensioners';
+    console.log('[Map] Coloring by field for data_status:', filters.data_status, val, coloring_field_key);
+    return coloring_field_key;
   }
 
-  const stats = geoStats?.find((gs) => gs.name === name);
-  const count = stats?.[metricField] || 0;
+  const colorByFieldKey = getColorByField(filters);
+  const pensionerValues = geoStats?.map(g => g[colorByFieldKey] || 0).filter(n => n > 0) || [];
+  const sortedValues = [...pensionerValues].sort((a, b) => a - b);
+  const bottom20 = sortedValues[Math.floor(sortedValues.length * 0.2)] || 0;
+  const top20 = sortedValues[Math.floor(sortedValues.length * 0.8)] || 1;
 
-  return {
-    color: '#455a64',
-    weight: 1,
-    fillColor: getColorForPensioners(count, bottom20, top20),
-    fillOpacity: 0.95,
+  // Build dynamic legend scale (same for all views)
+ const range = top20 - bottom20;
+const legendSteps = 6;
+let dynamicLegend = [];
+
+if (range <= 0) {
+  // completely flat data (all same value)
+  dynamicLegend = [{
+    label: `${Math.round(bottom20).toLocaleString()}`,
+    color: getColorForPensioners(bottom20, bottom20, top20),
+  }];
+} else {
+  // Compute step, but never make it <1 when dealing with small integer data
+  const rawStep = range / legendSteps;
+  const step = range <= legendSteps ? 1 : rawStep;
+
+  const bins = [];
+  for (let v = Math.floor(bottom20); v < Math.ceil(top20); v += step) {
+    const min = Math.round(v);
+    const max = Math.min(Math.round(v + step), Math.round(top20));
+    if (bins.length === 0 || min !== bins[bins.length - 1].min) {
+      bins.push({ min, max });
+    }
+  }
+
+  dynamicLegend = bins.map(({ min, max }) => ({
+    label: min === max ? `${min}` : `${min.toLocaleString()} – ${max.toLocaleString()}`,
+    color: getColorForPensioners((min + max) / 2, bottom20, top20),
+  })).reverse();
+}
+// darker at top
+
+
+
+  // --- Unified map coloring helper ---
+  const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
+    const metricField = getColorByField(filters);
+
+    // Decide the feature name key depending on layer type
+    const props = feature?.properties || {};
+    let name = '';
+    if (props.Pincode) {
+      name = String(props.Pincode).trim();
+    } else if (props.DISTNAME || props.DISTRICT || props.DIST_NAME) {
+      name = getDistrictName(props);
+    } else {
+      name = getStateName(feature);
+    }
+
+    const stats = geoStats?.find((gs) => gs.name === name);
+    const count = stats?.[metricField] || 0;
+
+    return {
+      color: '#455a64',
+      weight: 1,
+      fillColor: getColorForPensioners(count, bottom20, top20),
+      fillOpacity: 0.95,
+    };
   };
-};
 
   return (
     <Paper
@@ -666,7 +709,7 @@ const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
               Loading...
             </Box>
           )}
-          {(viewLevel === 'state'  || viewLevel === 'district') && (
+          {(viewLevel === 'state' || viewLevel === 'district') && (
             <Box
               onClick={() => openStateView(selectedStateName)}
               sx={{
@@ -735,7 +778,7 @@ const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
             <SetMapRef mapRef={mapRef} />
             {geoData && geoStats && geoStats.length > 0 && viewMode !== 'pincodes' && (
               <GeoJSON
-                key={`${viewLevel}-${selectedStateName || 'country'}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
+                key={`${viewLevel}-${selectedStateName || 'country'}-${colorByFieldKey}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
                 data={geoData}
                 style={(feature) => getFeatureStyle(feature, geoStats, filters, bottom20, top20)}
                 onEachFeature={viewLevel === 'state' ? onEachDistrictFeature : onEachStateFeature}
@@ -746,7 +789,7 @@ const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
             asynchronously loading, and the api data not being bound for the tooltips on the layer.*/}
             {viewMode === 'pincodes' && pincodesInDistrict && geoStats && geoStats.length > 0 && (
               <GeoJSON
-                key={`${viewMode}-${districtPanel.selectedDistrictName || 'none'}-${geoStatsLoading}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
+                key={`${viewMode}-${districtPanel.selectedDistrictName || 'none'}-${colorByFieldKey}-${geoStatsLoading}-${JSON.stringify(geoStats.map(s => s.name.slice(0, 3)))}`}
                 data={pincodesInDistrict}
                 style={(feature) => getFeatureStyle(feature, geoStats, filters, bottom20, top20)}
                 onEachFeature={onEachPincodeFeature} // ✅ same tooltip/hover logic
@@ -761,96 +804,96 @@ const getFeatureStyle = (feature, geoStats, filters, bottom20, top20) => {
           </Box>
         )}
 
-{viewLevel && (
-  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-    {dynamicLegend.map((item) => (
-      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
+        {viewLevel && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {dynamicLegend.map((item) => (
+              <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: item.color,
+                    marginRight: '6px',
+                    borderRadius: '3px',
+                  }}
+                />
+                <Typography variant="body2" sx={{ fontSize: '11px', color: theme.palette.text.primary }}>
+                  {item.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
+
         <Box
           sx={{
-            width: 10,
-            height: 10,
-            backgroundColor: item.color,
-            marginRight: '6px',
-            borderRadius: '3px',
+            position: 'absolute',
+            left: '8px',
+            bottom: '8px',
+            backgroundColor: theme.palette.background.paper,
+            border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
+            borderRadius: '8px',
+            boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
+            padding: '8px 10px',
+            minWidth: '160px',
           }}
-        />
-        <Typography variant="body2" sx={{ fontSize: '11px', color: theme.palette.text.primary }}>
-          {item.label}
-        </Typography>
-      </Box>
-    ))}
-  </Box>
-)}
-
-<Box
-  sx={{
-    position: 'absolute',
-    left: '8px',
-    bottom: '8px',
-    backgroundColor: theme.palette.background.paper,
-    border: isDarkMode ? '1px solid #415A77' : '1px solid #eaeaea',
-    borderRadius: '8px',
-    boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
-    padding: '8px 10px',
-    minWidth: '160px',
-  }}
->
-  {/* Legend Title */}
-  <Typography
-    variant="subtitle2"
-    sx={{
-      color: theme.palette.text.primary,
-      fontWeight: 600,
-      display: 'block',
-      marginBottom: '4px',
-      fontSize: '12px',
-    }}
-  >
-    {(() => {
-      const type = (filters?.data_status || '').toLowerCase();
-      if (type === 'dlc done') return 'DLC Done';
-      if (type === 'dlc pending') return 'DLC Pending';
-      if (type === 'conversion potential') return 'Conversion Potential';
-      return 'Total Pensioners';
-    })()}
-  </Typography>
-
-  {/* Legend Color Steps */}
-  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-    {dynamicLegend.map((item) => (
-      <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
-        <Box
-          sx={{
-            width: 10,
-            height: 10,
-            backgroundColor: item.color,
-            marginRight: '6px',
-            borderRadius: '3px',
-          }}
-        />
-        <Typography
-          variant="body2"
-          sx={{ fontSize: '11px', color: theme.palette.text.primary }}
         >
-          {item.label}
-        </Typography>
-      </Box>
-    ))}
-  </Box>
+          {/* Legend Title */}
+          <Typography
+            variant="subtitle2"
+            sx={{
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              display: 'block',
+              marginBottom: '4px',
+              fontSize: '12px',
+            }}
+          >
+            {(() => {
+              const type = colorByFieldKey;
+              if (type === 'dlc_done') return 'DLC Done';
+              if (type === 'dlc_pending') return 'DLC Pending';
+              if (type === 'conversion_potential') return 'PLC to DLC Conversion Potential';
+              return 'Total Pensioners';
+            })()}
+          </Typography>
 
-  {/* Numeric Range Info */}
-  <Typography
-    sx={{
-      fontSize: '10px',
-      opacity: 0.6,
-      marginTop: '4px',
-      color: theme.palette.text.secondary,
-    }}
-  >
-    Range: {Math.round(bottom20).toLocaleString()} –{' '}
-    {Math.round(top20).toLocaleString()}
-  </Typography>
-</Box>
+          {/* Legend Color Steps */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {dynamicLegend.map((item) => (
+              <Box key={item.label} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: item.color,
+                    marginRight: '6px',
+                    borderRadius: '3px',
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{ fontSize: '11px', color: theme.palette.text.primary }}
+                >
+                  {item.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* Numeric Range Info */}
+          <Typography
+            sx={{
+              fontSize: '10px',
+              opacity: 0.6,
+              marginTop: '4px',
+              color: theme.palette.text.secondary,
+            }}
+          >
+            Range: {Math.round(bottom20).toLocaleString()} –{' '}
+            {Math.round(top20).toLocaleString()}
+          </Typography>
+        </Box>
 
 
         {/* Districts panel moved to RightColumn; nothing renders inside the map container now. */}

@@ -24,7 +24,7 @@ function RightColumn({ filters, refreshKey }) {
   const showAsk = viewMode === 'ask';
   const showDistricts = viewMode === 'districts';
   const showPincodes = viewMode === 'pincodes';
-  
+
   const common = {
     position: 'absolute',
     top: 0,
@@ -239,10 +239,10 @@ function AppContent() {
     "district": null,
     "pincode": null,
     "pensioner_types": {
-      "state":null, "central":null, "other":null
+      "state": null, "central": null, "other": null
     },
     "age_groups": null,
-    "data_status": null
+    "data_status": 'All pensioners'
   });
   const [isLoading, setIsLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -253,13 +253,31 @@ function AppContent() {
   }
 
   const handleApplyFilters = (newFilters) => {
-    console.log("Old filters:", filters);
-    console.log("Applying new filters:", newFilters);
+    if (JSON.stringify(filters) === JSON.stringify(newFilters)) {
+      console.log("No filters changed, not applying.");
+      return;
+    }
+
+    const { data_status: oldStatus, ...restOld } = filters;
+    const { data_status: newStatus, ...restNew } = newFilters;
+
+    const otherFiltersChanged = JSON.stringify(restOld) !== JSON.stringify(restNew);
+    const onlyDataStatusChanged = !otherFiltersChanged && oldStatus !== newStatus;
+
+    if (onlyDataStatusChanged) {
+      filters.data_status = newFilters.data_status; // always update data_status in state
+
+      // console.log("Only data_status changed — skipping full reload.");
+      setShowFilter(false);
+      return;
+    }
+
     setFilters(newFilters);
-    console.log("New filters set:", filters);
+    // console.log("Filters changed, triggering refresh:", newFilters);
     setIsLoading(true);   // start loading
     setShowFilter(false);
     setRefreshKey(prev => prev + 1);  // increment to signal children
+    setIsLoading(false);
   };
 
   const updateFilterViaMapContextHandler = (updatedFilters) => {
@@ -295,7 +313,7 @@ function AppContent() {
               onOpenFilter={handleOpenFilter}
               filters={filters}
               refreshKey={refreshKey}
-              onUpdateFilterViaMapContext = {updateFilterViaMapContextHandler} />
+              onUpdateFilterViaMapContext={updateFilterViaMapContextHandler} />
 
             <FilterComponent
               open={showFilter}
