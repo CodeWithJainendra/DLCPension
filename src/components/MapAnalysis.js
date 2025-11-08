@@ -765,14 +765,14 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(255,255,255,0.6)',
+              backgroundColor: 'rgba(32, 28, 28, 0.85)',
               zIndex: 2000,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Typography variant="body2" sx={{ color: '#1976d2' }}>
+            <Typography variant="body2" sx={{ color: '#f6f3f1ff' }}>
               Loading map data...
             </Typography>
           </Box>

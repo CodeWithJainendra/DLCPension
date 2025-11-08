@@ -13,7 +13,7 @@ import FilterComponent from './components/FilterComponent';
 import VerificationMethods from './components/VerificationMethods';
 import AIChatCard from './components/AIChatCard';
 import Login from './components/Login';
-import { Backdrop, CircularProgress } from '@mui/material';
+import { Backdrop, CircularProgress, Typography } from '@mui/material';
 
 import './App.css';
 
@@ -82,105 +82,46 @@ function RightColumn({ filters, refreshKey }) {
       </Box>
 
       {/* Districts overlay */}
-      {districtPanel && districtPanel.data &&
-      (<Box
-        sx={{
-          ...common,
-          transform: showDistricts ? 'translate3d(0,0,0)' : 'translate3d(20px,0,0)',
-          opacity: showDistricts ? 1 : 0,
-          pointerEvents: showDistricts ? 'auto' : 'none'
-        }}
-      >
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          {/* Panel card */}
-          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '8px', border: '1px solid', borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, overflow: 'hidden' }}>
-            <Box sx={{ padding: '10px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <span style={{ fontWeight: 700, fontSize: '15px', color: theme.palette.text.primary }}>{districtPanel.stateName ? `Districts in ${districtPanel.stateName}` : 'Districts'}</span>
-              </Box>
-              <button onClick={() => setViewMode('analytics')} style={{
-                fontSize: '16px',
-                border: `1px solid ${theme.palette.divider}`,
-                background: theme.palette.background.paper,
-                color: theme.palette.text.primary,
-                cursor: 'pointer',
-                width: '28px',
-                height: '28px',
-                lineHeight: '24px',
-                borderRadius: '6px'
-              }}>×</button>
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>District Name</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pending</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion potential</span>
-            </Box>
-            <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
-              {districtNames.map((name, idx) => (
-                <Box
-                  key={`${name}-${idx}`}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr',
-                    columnGap: '8px',
-                    padding: '10px 14px',
-                    borderBottom: '1px solid',
-                    borderBottomColor: theme.palette.divider,
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark'
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.04)',
-                    }
-                  }}
-                  onClick={() => {
-                    setDistrictPanel({ ...districtPanel, selectedDistrictName: name });
-                    setViewMode('pincodes');
-                  }}
-                >
-                  
-                  <Box sx={{ fontWeight: 700, fontSize: '12px', color: theme.palette.primary.main }}>{name}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.total_pensioners || '--'}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.warning.main }}>{districtPanel.data.find(d => d.name === name)?.dlc_pending || '--'}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.conversion_potential || '--'}</Box>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-      )}
+      {districtPanel &&
+        (<Box
+          sx={{
+            ...common,
+            transform: showDistricts ? 'translate3d(0,0,0)' : 'translate3d(20px,0,0)',
+            opacity: showDistricts ? 1 : 0,
+            pointerEvents: showDistricts ? 'auto' : 'none'
+          }}
+        >
+          {(districtPanel.districtNames?.length > 0 && (!districtPanel.data || districtPanel.data.length === 0)) ?
+            (
 
-      {/* Pincodes overlay */}
-      
-      <Box
-        sx={{
-          ...common,
-          transform: showPincodes ? 'translate3d(0,0,0)' : 'translate3d(20px,0,0)',
-          opacity: showPincodes ? 1 : 0,
-          pointerEvents: showPincodes ? 'auto' : 'none'
-        }}
-      >
-        {pincodePanel && pincodePanel.data &&(
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          {/* Panel card */}
-          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '8px', border: '1px solid', borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, overflow: 'hidden' }}>
-            <Box sx={{ padding: '10px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <span style={{ fontWeight: 700, fontSize: '15px', color: theme.palette.text.primary }}>{districtPanel.selectedDistrictName ? `Pincodes in ${districtPanel.selectedDistrictName}` : 'Pincodes'}</span>
-              </Box>
-              <Box sx={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => setViewMode('districts')} style={{
-                  fontSize: '12px',
-                  border: `1px solid ${theme.palette.divider}`,
-                  background: theme.palette.background.paper,
-                  color: theme.palette.text.primary,
-                  cursor: 'pointer',
-                  borderRadius: '6px',
-                  padding: '4px 8px'
-                }}>Back</button>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(1px)',
+                  zIndex: 1
+                }}
+              >
+                <CircularProgress sx={{ color: theme.palette.primary.main }} size={28} />
+              </Box>) : null
+          }
+
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Panel card */}
+            <Box sx={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '8px', border: '1px solid', borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, overflow: 'hidden' }}>
+              <Box sx={{ padding: '10px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <span style={{ fontWeight: 700, fontSize: '15px', color: theme.palette.text.primary }}>{districtPanel.stateName ? `Districts in ${districtPanel.stateName}` : 'Districts'}</span>
+                </Box>
                 <button onClick={() => setViewMode('analytics')} style={{
                   fontSize: '16px',
                   border: `1px solid ${theme.palette.divider}`,
@@ -193,51 +134,155 @@ function RightColumn({ filters, refreshKey }) {
                   borderRadius: '6px'
                 }}>×</button>
               </Box>
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pincode</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Post office</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total Pensioners</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>DLC Pending</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion Potential</span>
-            </Box>
-            <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
-              {(pincodePanel.pincodes || []).map((pincode, idx) => (
-                <Box
-                  key={`${pincode}-${idx}`}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr',
-                    columnGap: '8px',
-                    padding: '10px 14px',
-                    borderBottom: '1px solid',
-                    borderBottomColor: theme.palette.divider,
-                    transition: 'background-color 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: theme.palette.mode === 'dark'
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.04)',
-                    }
-                  }}
-                >
-                  <Box sx={{ textAlign: 'left', fontWeight: 700, fontSize: '12px', color: theme.palette.error.main }}>{pincode}</Box>
-                  <Box sx={{ textAlign: 'left', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.pincodeNames[idx]}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.total_pensioners}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.dlc_pending}</Box>
-                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.conversion_potential}</Box>
-                </Box>
-              ))}
-              {(!pincodePanel.pincodes || pincodePanel.pincodes.length === 0) && (
-                <Box sx={{ padding: '12px 14px', fontSize: '12px', color: theme.palette.text.secondary }}>
-                  {(pincodePanel.districtName || districtPanel.selectedDistrictName) ? 'No pincodes found for this district. Data may still be loading...' : 'Select a district to view pincodes.'}
-                </Box>
-              )}
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.7fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
+                <span style={{ textAlign: 'left', fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>District Name</span>
+                <span style={{ textAlign: 'right', fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total</span>
+                <span style={{ textAlign: 'right', fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pending</span>
+                <span style={{ textAlign: 'right', fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion potential</span>
+              </Box>
+
+              <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
+                {districtNames.map((name, idx) => (
+                  <Box
+                    key={`${name}-${idx}`}
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.7fr',
+                      columnGap: '8px',
+                      padding: '10px 14px',
+                      borderBottom: '1px solid',
+                      borderBottomColor: theme.palette.divider,
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: theme.palette.mode === 'dark'
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(0, 0, 0, 0.04)',
+                      }
+                    }}
+                    onClick={() => {
+                      setDistrictPanel({ ...districtPanel, selectedDistrictName: name });
+                      setViewMode('pincodes');
+                    }}
+                  >
+
+                    <Box sx={{ textAlign: 'left', fontWeight: 700, fontSize: '12px', color: theme.palette.primary.main }}>{name}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.total_pensioners || '--'}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.warning.main }}>{districtPanel.data.find(d => d.name === name)?.dlc_pending || '--'}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.conversion_potential || '--'}</Box>
+                  </Box>
+                ))}
+              </Box>
+
             </Box>
           </Box>
         </Box>
-         )}
+        )}
+
+      {/* Pincodes overlay */}
+      <Box
+        sx={{
+          ...common,
+          transform: showPincodes ? 'translate3d(0,0,0)' : 'translate3d(20px,0,0)',
+          opacity: showPincodes ? 1 : 0,
+          pointerEvents: showPincodes ? 'auto' : 'none'
+        }}
+      >
+        {(pincodePanel && pincodePanel.pincodes && pincodePanel.pincodes.length > 0 && (!pincodePanel.data || pincodePanel.data.length === 0)) ?
+          (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(1px)',
+                zIndex: 1
+              }}
+            >
+              <CircularProgress sx={{ color: theme.palette.primary.main }} size={28} />
+            </Box>
+          ) : (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Panel card */}
+              <Box sx={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '8px', border: '1px solid', borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, overflow: 'hidden' }}>
+                <Box sx={{ padding: '10px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <span style={{ fontWeight: 700, fontSize: '15px', color: theme.palette.text.primary }}>{districtPanel.selectedDistrictName ? `Pincodes in ${districtPanel.selectedDistrictName}` : 'Pincodes'}</span>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => setViewMode('districts')} style={{
+                      fontSize: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      background: theme.palette.background.paper,
+                      color: theme.palette.text.primary,
+                      cursor: 'pointer',
+                      borderRadius: '6px',
+                      padding: '4px 8px'
+                    }}>Back</button>
+                    <button onClick={() => setViewMode('analytics')} style={{
+                      fontSize: '16px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      background: theme.palette.background.paper,
+                      color: theme.palette.text.primary,
+                      cursor: 'pointer',
+                      width: '28px',
+                      height: '28px',
+                      lineHeight: '24px',
+                      borderRadius: '6px'
+                    }}>×</button>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
+                  <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pincode</span>
+                  <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Post office</span>
+                  <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total Pensioners</span>
+                  <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>DLC Pending</span>
+                  <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion Potential</span>
+                </Box>
+                <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
+                  {(pincodePanel.pincodes || []).map((pincode, idx) => (
+                    <Box
+                      key={`${pincode}-${idx}`}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr',
+                        columnGap: '8px',
+                        padding: '10px 14px',
+                        borderBottom: '1px solid',
+                        borderBottomColor: theme.palette.divider,
+                        transition: 'background-color 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.08)'
+                            : 'rgba(0, 0, 0, 0.04)',
+                        }
+                      }}
+                    >
+                      <Box sx={{ textAlign: 'left', fontWeight: 700, fontSize: '12px', color: theme.palette.error.main }}>{pincode}</Box>
+                      <Box sx={{ textAlign: 'left', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.pincodeNames[idx]}</Box>
+                      <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.total_pensioners}</Box>
+                      <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.dlc_pending}</Box>
+                      <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.conversion_potential}</Box>
+                    </Box>
+                  ))}
+                  {(!pincodePanel.pincodes || pincodePanel.pincodes.length === 0) && (
+                    <Box sx={{ padding: '12px 14px', fontSize: '12px', color: theme.palette.text.secondary }}>
+                      {(pincodePanel.districtName || districtPanel.selectedDistrictName) ? 'No pincodes found for this district. Data may still be loading...' : 'Select a district to view pincodes.'}
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          )}
       </Box>
-     
+
     </Box>
   );
 }
