@@ -47,6 +47,21 @@ const Header = () => {
   const notificationOpen = Boolean(notificationAnchorEl);
   const userMenuOpen = Boolean(userMenuAnchorEl);
   
+  const getNextEightAM = function () {
+  const now = new Date();
+  
+  const eightAMToday = new Date(now);
+  eightAMToday.setHours(8, 0, 0, 0);
+
+  if (eightAMToday > now) {
+    return eightAMToday;
+  } else {
+    const eightAMTomorrow = new Date(eightAMToday);
+    eightAMTomorrow.setDate(eightAMToday.getDate() + 1);
+    return eightAMTomorrow;
+  }
+}
+
   return (
     <Box sx={{ 
       display: 'flex', 
@@ -86,7 +101,7 @@ const Header = () => {
             Next Data Update
           </Typography>
           <Typography variant="body1" sx={{ color: isDarkMode ? '#9C4522' : '#ff6d00', fontWeight: 'bold', fontSize: '14px' }}>
-            17:16:55
+            {getNextEightAM().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
           </Typography>
         </Box>
         
