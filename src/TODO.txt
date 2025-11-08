@@ -1,0 +1,9 @@
+1. Fix legend / range on selecting states / districts (Highest value not picked, check Jodhpur Rajasthan)
+2. On selecting state / district in map, dont zoom and wait, render geojson, while waiting for data. 
+3. Components are loading twice, need to see why.
+5. On states pop-up, dont show completion rate alone, show other stats as well.
+
+
+
+4. GeoStats need to be hooked up to right table for districts and pincodes.
+

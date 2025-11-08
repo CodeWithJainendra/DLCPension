@@ -30,7 +30,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
 
   const geoStatsUrl = 'http://localhost:9007/dlc-pension-data-api/api/geo-stats';
   const { isDarkMode, theme } = useTheme();
-  const { viewMode, setViewMode, setDistrictPanel, districtPanel, setPincodePanel } = useViewMode();
+  const { viewMode, setViewMode, districtPanel, setDistrictPanel, pincodePanel, setPincodePanel } = useViewMode();
   const [statesData, setStatesData] = useState(null);
   const [districtsData, setDistrictsData] = useState(null);
   const [pincodesData, setPincodesData] = useState(null);
@@ -51,6 +51,19 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     return featureStats;
   };
 
+  const updateRightPanelData = (level, data) => {
+        if(level === 'country') {
+      }
+      if(level === 'state') {
+        setDistrictPanel((prev) => ({ ...prev, data: data || [] }));
+        console.log('[geo-stats] set district panel data:', districtPanel);
+      }
+      if(level === 'district') {
+        setPincodePanel((prev) => ({ ...prev, data: data || [] }));
+        console.log('[geo-stats] set pincode panel data:', pincodePanel);
+      }
+    }
+
   const fetchGeoStats = async (level, name, filters) => {
     try {
       setGeoStatsLoading(true);
@@ -59,6 +72,9 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
       const data = await _makeAPICallOrFetchFromCache(geoStatsUrl, params, 5 * 60 * 1000);
       console.log('[geo-stats] fetched data:', data);
       setGeoStats(Array.isArray(data) ? data : data.geoStats || []);
+
+      updateRightPanelData(level, data.geoStats || []);
+
       setGeoStatsLoading(false);
     } catch (err) {
       console.error('[geo-stats] failed:', err);
@@ -75,7 +91,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
       .then((res) => res.json())
       .then((data) => {
         setStatesData(data);
-        setGeoData(data); // initial visible layer
+        setGeoData(data);
         console.log('[Map] Loaded INDIA_STATES.geojson with', data.features?.length || 0, 'features');
         setTimeout(() => {
           const map = mapRef.current;
@@ -322,9 +338,9 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
       setGeoData(data);
       const districtNames = (data.features || []).map((f) => getDistrictName(f.properties || {}));
       setViewMode('districts');
-      setDistrictPanel({ stateName, districtNames, selectedDistrictName: null });
+      setDistrictPanel({ stateName, districtNames, selectedDistrictName: null, data:[] });
       setPincodesInDistrict(null);
-      setPincodePanel({ districtName: null, pincodes: [] });
+      setPincodePanel({ districtName: null, pincodes: [], data:[] });
       if (map && data?.features?.length) {
         const layer = L.geoJSON(data);
         const bounds = layer.getBounds();
@@ -447,7 +463,8 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
           setViewMode('pincodes');
           setDistrictPanel((prev) => ({ ...prev, selectedDistrictName: districtName }));
           const pincodeList = filtered.map((pf) => String(pf.properties?.Pincode || ''));
-          setPincodePanel({ districtName, pincodes: pincodeList });
+          const pincodeNames = filtered.map((pf) => String(pf.properties?.Office_Name || ''));
+          setPincodePanel({ districtName, pincodes: pincodeList, pincodeNames: pincodeNames, data:[] });
           const map = mapRef.current;
           if (map && filtered.length) {
             const layerBounds = L.geoJSON(fc).getBounds();
@@ -498,7 +515,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
       setViewMode('analytics');
       setDistrictPanel({ stateName: null, districtNames: [], selectedDistrictName: null });
       setPincodesInDistrict(null);
-      setPincodePanel({ districtName: null, pincodes: [] });
+      setPincodePanel({ districtName: null, pincodes: [], pincodeNames:[], data:[] });
       const map = mapRef.current;
       if (map) {
         try {
@@ -563,36 +580,36 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   const top20 = sortedValues[Math.floor(sortedValues.length * 0.8)] || 1;
 
   // Build dynamic legend scale (same for all views)
- const range = top20 - bottom20;
-const legendSteps = 6;
-let dynamicLegend = [];
+  const range = top20 - bottom20;
+  const legendSteps = 6;
+  let dynamicLegend = [];
 
-if (range <= 0) {
-  // completely flat data (all same value)
-  dynamicLegend = [{
-    label: `${Math.round(bottom20).toLocaleString()}`,
-    color: getColorForPensioners(bottom20, bottom20, top20),
-  }];
-} else {
-  // Compute step, but never make it <1 when dealing with small integer data
-  const rawStep = range / legendSteps;
-  const step = range <= legendSteps ? 1 : rawStep;
+  if (range <= 0) {
+    // completely flat data (all same value)
+    dynamicLegend = [{
+      label: `${Math.round(bottom20).toLocaleString()}`,
+      color: getColorForPensioners(bottom20, bottom20, top20),
+    }];
+  } else {
+    // Compute step, but never make it <1 when dealing with small integer data
+    const rawStep = range / legendSteps;
+    const step = range <= legendSteps ? 1 : rawStep;
 
-  const bins = [];
-  for (let v = Math.floor(bottom20); v < Math.ceil(top20); v += step) {
-    const min = Math.round(v);
-    const max = Math.min(Math.round(v + step), Math.round(top20));
-    if (bins.length === 0 || min !== bins[bins.length - 1].min) {
-      bins.push({ min, max });
+    const bins = [];
+    for (let v = Math.floor(bottom20); v < Math.ceil(top20); v += step) {
+      const min = Math.round(v);
+      const max = Math.min(Math.round(v + step), Math.round(top20));
+      if (bins.length === 0 || min !== bins[bins.length - 1].min) {
+        bins.push({ min, max });
+      }
     }
-  }
 
-  dynamicLegend = bins.map(({ min, max }) => ({
-    label: min === max ? `${min}` : `${min.toLocaleString()} – ${max.toLocaleString()}`,
-    color: getColorForPensioners((min + max) / 2, bottom20, top20),
-  })).reverse();
-}
-// darker at top
+    dynamicLegend = bins.map(({ min, max }) => ({
+      label: min === max ? `${min}` : `${min.toLocaleString()} – ${max.toLocaleString()}`,
+      color: getColorForPensioners((min + max) / 2, bottom20, top20),
+    })).reverse();
+  }
+  // darker at top
 
 
 
@@ -902,4 +919,4 @@ if (range <= 0) {
   );
 };
 
-export default MapAnalysis;
+export default MapAnalysis; 

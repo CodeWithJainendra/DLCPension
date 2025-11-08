@@ -18,7 +18,7 @@ import { Backdrop, CircularProgress } from '@mui/material';
 import './App.css';
 
 function RightColumn({ filters, refreshKey }) {
-  const { viewMode, districtPanel, pincodePanel, setViewMode, setDistrictPanel } = useViewMode();
+  const { viewMode, setViewMode, districtPanel, setDistrictPanel, pincodePanel, setPincodePanel } = useViewMode();
   const { theme } = useTheme();
   const showAnalytics = viewMode === 'analytics';
   const showAsk = viewMode === 'ask';
@@ -82,7 +82,8 @@ function RightColumn({ filters, refreshKey }) {
       </Box>
 
       {/* Districts overlay */}
-      <Box
+      {districtPanel && districtPanel.data &&
+      (<Box
         sx={{
           ...common,
           transform: showDistricts ? 'translate3d(0,0,0)' : 'translate3d(20px,0,0)',
@@ -112,8 +113,8 @@ function RightColumn({ filters, refreshKey }) {
             <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 0.7fr 0.7fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
               <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>District Name</span>
               <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Verified</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Rate</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pending</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion potential</span>
             </Box>
             <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
               {districtNames.map((name, idx) => (
@@ -139,18 +140,21 @@ function RightColumn({ filters, refreshKey }) {
                     setViewMode('pincodes');
                   }}
                 >
+                  
                   <Box sx={{ fontWeight: 700, fontSize: '12px', color: theme.palette.primary.main }}>{name}</Box>
-                  <Box sx={{ fontSize: '12px', color: theme.palette.text.secondary }}>--</Box>
-                  <Box sx={{ fontSize: '12px', color: theme.palette.warning.main }}>--</Box>
-                  <Box sx={{ fontSize: '12px', color: theme.palette.text.secondary }}>--</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.total_pensioners || '--'}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.warning.main }}>{districtPanel.data.find(d => d.name === name)?.dlc_pending || '--'}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.conversion_potential || '--'}</Box>
                 </Box>
               ))}
             </Box>
           </Box>
         </Box>
       </Box>
+      )}
 
       {/* Pincodes overlay */}
+      
       <Box
         sx={{
           ...common,
@@ -159,6 +163,7 @@ function RightColumn({ filters, refreshKey }) {
           pointerEvents: showPincodes ? 'auto' : 'none'
         }}
       >
+        {pincodePanel && pincodePanel.data &&(
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           {/* Panel card */}
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderRadius: '8px', border: '1px solid', borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, overflow: 'hidden' }}>
@@ -189,17 +194,20 @@ function RightColumn({ filters, refreshKey }) {
                 }}>×</button>
               </Box>
             </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1.1fr 1.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr', columnGap: '8px', padding: '8px 14px', borderBottom: '1px solid', borderBottomColor: theme.palette.divider }}>
               <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Pincode</span>
-              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Office Name</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Post office</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Total Pensioners</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>DLC Pending</span>
+              <span style={{ fontWeight: 600, fontSize: '12px', color: theme.palette.text.secondary }}>Conversion Potential</span>
             </Box>
             <Box sx={{ overflowY: 'auto', padding: '4px 0' }}>
-              {(pincodePanel.pincodes || []).map((pc, idx) => (
+              {(pincodePanel.pincodes || []).map((pincode, idx) => (
                 <Box
-                  key={`${pc}-${idx}`}
+                  key={`${pincode}-${idx}`}
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns: '1.1fr 1.6fr',
+                    gridTemplateColumns: '0.5fr 1.1fr 0.5fr 0.5fr 0.6fr',
                     columnGap: '8px',
                     padding: '10px 14px',
                     borderBottom: '1px solid',
@@ -212,8 +220,11 @@ function RightColumn({ filters, refreshKey }) {
                     }
                   }}
                 >
-                  <Box sx={{ fontWeight: 700, fontSize: '12px', color: theme.palette.error.main }}>{pc}</Box>
-                  <Box sx={{ fontSize: '12px', color: theme.palette.text.secondary }}>--</Box>
+                  <Box sx={{ textAlign: 'left', fontWeight: 700, fontSize: '12px', color: theme.palette.error.main }}>{pincode}</Box>
+                  <Box sx={{ textAlign: 'left', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.pincodeNames[idx]}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.total_pensioners}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.dlc_pending}</Box>
+                  <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{pincodePanel.data.find(i => i.name === pincode)?.conversion_potential}</Box>
                 </Box>
               ))}
               {(!pincodePanel.pincodes || pincodePanel.pincodes.length === 0) && (
@@ -224,7 +235,9 @@ function RightColumn({ filters, refreshKey }) {
             </Box>
           </Box>
         </Box>
+         )}
       </Box>
+     
     </Box>
   );
 }
