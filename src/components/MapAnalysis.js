@@ -349,7 +349,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
   const onEachStateFeature = (feature, layer) => {
     if (!geoStats || !Array.isArray(geoStats) || geoStats.length === 0) return;
     const stateName = getStateName(feature);
-    const stats = geoStats.find(gs => gs.name === stateName) || {};
+    const stats = geoStats.find(gs => gs.name.toLowerCase() === stateName.toLowerCase()) || {};
     layer.on({
       mouseover: (e) => {
         layer.setStyle({ weight: 3, fillOpacity: 1 });
@@ -381,7 +381,7 @@ const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapCo
     if (!geoStats || !Array.isArray(geoStats) || geoStats.length === 0) return;
 
     const districtName = getDistrictName(feature?.properties || {});
-    const stats = geoStats.find(gs => gs.name === districtName) || {};
+    const stats = geoStats.find(gs => gs.name.toLowerCase() === districtName.toLowerCase()) || {};
     layer.on({
       mouseover: (e) => {
 

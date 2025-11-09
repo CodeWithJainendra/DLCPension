@@ -122,7 +122,7 @@ function RightColumn({ filters, refreshKey }) {
                 <Box>
                   <span style={{ fontWeight: 700, fontSize: '15px', color: theme.palette.text.primary }}>{districtPanel.stateName ? `Districts in ${districtPanel.stateName}` : 'Districts'}</span>
                 </Box>
-                <button onClick={() => setViewMode('analytics')} style={{
+                <button onClick={() => setViewMode(pincodePanel.data? 'pincodes': districtPanel.data? 'districts': 'analytics')} style={{
                   fontSize: '16px',
                   border: `1px solid ${theme.palette.divider}`,
                   background: theme.palette.background.paper,
@@ -167,9 +167,9 @@ function RightColumn({ filters, refreshKey }) {
                   >
 
                     <Box sx={{ textAlign: 'left', fontWeight: 700, fontSize: '12px', color: theme.palette.primary.main }}>{name}</Box>
-                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.total_pensioners || '--'}</Box>
-                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.warning.main }}>{districtPanel.data.find(d => d.name === name)?.dlc_pending || '--'}</Box>
-                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name === name)?.conversion_potential || '--'}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name.toLowerCase() === name.toLowerCase())?.total_pensioners || '--'}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.warning.main }}>{districtPanel.data.find(d => d.name.toLowerCase() === name.toLowerCase())?.dlc_pending || '--'}</Box>
+                    <Box sx={{ textAlign: 'right', fontSize: '12px', color: theme.palette.text.secondary }}>{districtPanel.data.find(d => d.name.toLowerCase() === name.toLowerCase())?.conversion_potential || '--'}</Box>
                   </Box>
                 ))}
               </Box>
