@@ -66,7 +66,7 @@ const VerificationMethods = ({ filters, refreshKey }) => {
     setLoading(true);
     try {
       const response = await _makeAPICallOrFetchFromCache(
-        'http://localhost:9007/dlc-pension-data-api/api/dashboard/authentication-methods', 
+        'https://cdis.iitk.ac.in/dlc-backend/api/dashboard/authentication-methods', 
         { filters: filters }
       );
       const data = response["data"];

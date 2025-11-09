@@ -73,7 +73,7 @@ const AgeBreakdown = ({filters, refreshKey}) => {
 
       // API call with cache (5 minutes TTL)
       const apiData = await fetchWithCache(
-        'http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
+        'https://cdis.iitk.ac.in/dlc-backend/api/dashboard/public-stats',
         {filters:filters, limit:null},
         5 * 60 * 1000 // 5 minutes cache
       );

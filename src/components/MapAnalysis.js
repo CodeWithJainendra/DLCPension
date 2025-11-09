@@ -8,7 +8,7 @@ import indiaPincodesUrl from '../IndiaMap/INDIAN_PINCODE_BOUNDARY.geojson';
 import { useTheme } from '../contexts/ThemeContext';
 import { useViewMode } from '../contexts/ViewModeContext';
 import L from 'leaflet';
-import { fetchFileWithCache, fetchWithCache } from '../utils/cache';
+import { fetchWithCache } from '../utils/cache';
 
 // Known Indian states/UTs to help detect names from various schemas
 const KNOWN_STATES = [
@@ -28,7 +28,7 @@ function SetMapRef({ mapRef }) {
 
 const MapAnalysis = ({ onOpenFilter, filters, refreshKey, onUpdateFilterViaMapContext }) => {
 
-  const geoStatsUrl = 'http://localhost:9007/dlc-pension-data-api/api/geo-stats';
+  const geoStatsUrl = 'https://cdis.iitk.ac.in/dlc-backend/api/geo-stats';
   const { isDarkMode, theme } = useTheme();
   const { viewMode, setViewMode, districtPanel, setDistrictPanel, pincodePanel, setPincodePanel } = useViewMode();
   const [statesData, setStatesData] = useState(null);

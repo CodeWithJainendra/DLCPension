@@ -205,7 +205,7 @@ const StatCards = ({filters, refreshKey}) => {
       setError(null);
       // API call with cache (5 minutes TTL)
       console.log("Fetching stat card dashboard stats with filters:", filters);
-      const response = await fetchWithCache('http://localhost:9007/dlc-pension-data-api/api/dashboard/public-stats',
+      const response = await fetchWithCache('https://cdis.iitk.ac.in/dlc-backend/api/dashboard/public-stats',
         {filters:filters},
         5 * 60 * 1000 // 5 minutes cache
       );
